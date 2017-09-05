@@ -5,7 +5,3 @@
 	path = docbook-html5
 	url = git://github.com/bbcarchdev/docbook-html5.git
 	branch = gh-pages
-[submodule "docs"]
-	path = docs
-	url = git://github.com/bbcarchdev/spindle.git
-	branch = gh-pages

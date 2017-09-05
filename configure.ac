@@ -1,4 +1,4 @@
-##  Spindle: The RES Linked Open Data Aggregator
+## Patchwork: A Quilt engine for serving knowledge graphs
 ##
 ##  Author: Mo McRoberts
 ##
@@ -16,8 +16,9 @@
 ##  See the License for the specific language governing permissions and
 ##  limitations under the License.
 
-AC_INIT([spindle],m4_esyscmd([/bin/sh m4/get-version.sh]),[RESFeedback@bbc.co.uk],,[https://github.com/bbcarchdev/spindle])
+AC_INIT([patchwork],m4_esyscmd([/bin/sh m4/get-version.sh]),[RESFeedback@bbc.co.uk],,[https://github.com/bbcarchdev/patchwork])
 AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_AUX_DIR([scripts])
 AM_INIT_AUTOMAKE([foreign])
 AM_MAINTAINER_MODE
 
@@ -34,7 +35,6 @@ LT_INIT
 BT_ENABLE_POSIX_FULL
 AC_SYS_LARGEFILE
 
-dnl These libraries are used by all built components
 BT_REQUIRE_LIBUUID
 BT_REQUIRE_LIBCURL
 BT_REQUIRE_LIBRDF
@@ -42,13 +42,8 @@ BT_REQUIRE_LIBURI
 BT_REQUIRE_LIBSQL
 BT_REQUIRE_LIBAWSCLIENT
 BT_REQUIRE_LIBSPARQLCLIENT
+BT_REQUIRE_LIBQUILT
 
-dnl These libraries are linked conditionally
-BT_REQUIRE_LIBTWINE([true])
-BT_REQUIRE_LIBQUILT([true])
-BT_REQUIRE_LIBMQ([true])
-
-BT_DEFINE_PATH([TWINEMODULEDIR], [twinemoduledir], [Twine module path])
 BT_DEFINE_PATH([QUILTMODULEDIR], [quiltmoduledir], [Quilt module path])
 
 use_docbook_html5=yes
@@ -70,21 +65,9 @@ AC_SUBST([spindlehtdocdir])
 
 BT_DEFINE_PREFIX
 
-# Build options
-
-AC_DEFINE_UNQUOTED([SPINDLE_ENABLE_ABOUT_SELF], [0], [Whether to enable 'items are about themselves' in the index])
-
 AC_CONFIG_FILES([Makefile
 m4/Makefile
-twine/Makefile
-twine/common/Makefile
-twine/strip/Makefile
-twine/correlate/Makefile
-twine/generate/Makefile
-quilt/Makefile
-migrate/Makefile
 docbook-html5/Makefile
-docs/Makefile
 ])
 
 AC_OUTPUT

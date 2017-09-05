@@ -1,4 +1,4 @@
-## Spindle: The RES Linked Open Data Aggregation Engine
+## Patchwork: A Quilt engine for serving knowledge graphs
 ##
 ## Author: Mo McRoberts <mo.mcroberts@bbc.co.uk>
 ##
@@ -18,17 +18,31 @@
 
 ACLOCAL_AMFLAGS = -I m4
 
-DIST_SUBDIRS = m4 twine quilt docbook-html5 docs
-
-SUBDIRS = twine quilt migrate docs
+DIST_SUBDIRS = m4 docbook-html5
 
 EXTRA_DIST = LICENSE-2.0 README.md
+
+AM_CPPFLAGS = @AM_CPPFLAGS@ @LIBQUILT_CPPFLAGS@ @LIBSQL_CPPFLAGS@
+
+quiltmodule_LTLIBRARIES = patchwork.la
+
+patchwork_la_SOURCES = p_patchwork.h \
+	module.c request.c home.c index.c item.c sparql.c db.c s3.c \
+	file.c query.c
+
+patchwork_la_LDFLAGS = -no-undefined -module -avoid-version
+
+patchwork_la_LIBADD = @LIBQUILT_LOCAL_LIBS@ @LIBQUILT_LIBS@ \
+	@LIBAWSCLIENT_LOCAL_LIBS@ @LIBAWSCLIENT_LIBS@ \
+	@LIBSQL_LOCAL_LIBS@ @LIBSQL_LIBS@
+
+## Maintainer targets
 
 BRANCH ?= develop
 DOCS_BRANCH ?= gh-pages
 
 DEVELOP_SUBMODULES = m4
-DOCS_SUBMODULES = docbook-html5 docs
+DOCS_SUBMODULES = docbook-html5
 
 checkout:
 	@for submod in $(DEVELOP_SUBMODULES) ; do \
