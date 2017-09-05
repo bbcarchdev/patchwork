@@ -3,7 +3,7 @@ Section: misc
 Priority: optional
 Maintainer: Mo McRoberts <mo.mcroberts@bbc.co.uk>
 Standards-Version: 3.9.3
-Build-Depends: debhelper (>= 8.0.0), autoconf, automake, libtool, libltdl-dev, libtwine-dev (>= 7.0.0), uuid-dev, liburi-dev, libsql-dev, libsparqlclient-dev, libquilt-dev (>= 9.1), libawsclient-dev, libmq-dev (>= 2.0.0)
+Build-Depends: debhelper (>= 8.0.0), autoconf, automake, libtool, libltdl-dev, uuid-dev, liburi-dev, libsql-dev, libsparqlclient-dev, libquilt-dev (>= 9.1), libawsclient-dev
 
 Package: quilt-engine-patchwork
 Architecture: any
