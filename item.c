@@ -156,7 +156,7 @@ patchwork_item_postprocess_(QUILTREQ *request)
 	if(!librdf_node_equals(abstract, graph))
 	{
 		stream = librdf_model_context_as_stream(model, abstract);
-		librdf_model_context_add_statements(model, abstract, stream);
+		librdf_model_context_add_statements(model, graph, stream);
 		librdf_free_stream(stream);
 		librdf_model_context_remove_statements(model, abstract);
 	}
