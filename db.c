@@ -439,8 +439,8 @@ patchwork_item_db(QUILTREQ *request)
 	 */
 	memset(&item, 0, sizeof(struct db_item_struct));
 	item.request = request;
-	item.model = request->model;
-	item.graph = NULL; /* XXX should use the proxy graph */
+	item.model = quilt_request_model(request);
+	item.graph = quilt_request_graph(request);
 	item.id = id;
 	rs = sql_queryf(patchwork_db, "SELECT \"sameas\" FROM \"proxy\" WHERE \"id\" = %Q", item.id);
 	if(!rs)
@@ -1339,7 +1339,7 @@ patchwork_item_db_render_(struct db_item_struct *item)
 		quilt_canon_reset_path(selfc);
 		quilt_canon_reset_params(selfc);
 		quilt_canon_set_fragment(selfc, "id");
-		quilt_canon_add_path(selfc, item->id);		
+		quilt_canon_add_path(selfc, item->id);
 		subj = quilt_canon_str(selfc, QCO_SUBJECT);
 		quilt_canon_destroy(selfc);
 		selfc = NULL;
@@ -1347,7 +1347,7 @@ patchwork_item_db_render_(struct db_item_struct *item)
 	}
 	if(item->sameas)
 	{
-		add_array(item->model, item->graph, item->sameas, item->subject, NS_OWL "sameAs", 1);
+		add_array(item->model, item->graph, item->sameas, item->subject, NS_OWL "sameAs", 0);
 	}
 	if(item->classes)
 	{
