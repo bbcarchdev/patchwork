@@ -25,6 +25,7 @@
 #include "p_patchwork.h"
 
 static int patchwork_item_is_collection_(QUILTREQ *req);
+static int patchwork_item_postprocess_(QUILTREQ *req);
 
 /* Given an item's URI, attempt to redirect to it */
 int
@@ -63,6 +64,11 @@ patchwork_item(QUILTREQ *request)
 		 */
 		r = patchwork_item_db(request);
 	}
+	if(r != 200)
+	{
+		return r;
+	}
+	r = patchwork_item_postprocess_(request);
 	if(r != 200)
 	{
 		return r;
@@ -127,6 +133,56 @@ patchwork_item_related(QUILTREQ *request)
 	{
 		return r;
 	}
+	return 200;
+}
+
+static int
+patchwork_item_postprocess_(QUILTREQ *request)
+{
+	char *uri, *abstracturi;
+	librdf_world *world;
+	librdf_model *model;
+	librdf_node *abstract, *graph, *node, *sameas, *coref;
+	librdf_uri *corefuri;
+	librdf_statement *query, *st, *newst;
+	librdf_stream *stream;
+
+	world = quilt_librdf_world();
+	model = quilt_request_model(request);
+	graph = quilt_request_graph(request);
+	/* Move anything in the abstract document graph to the concrete graph */
+	abstracturi = quilt_canon_str(request->canonical, QCO_ABSTRACT);	
+	abstract = quilt_node_create_uri(abstracturi);
+	if(!librdf_node_equals(abstract, graph))
+	{
+		stream = librdf_model_context_as_stream(model, abstract);
+		librdf_model_context_add_statements(model, abstract, stream);
+		librdf_free_stream(stream);
+		librdf_model_context_remove_statements(model, abstract);
+	}
+	librdf_free_node(abstract);
+	free(abstracturi);
+	/* Find any ?s owl:sameAs <subject> triples and flip them around */
+	uri = quilt_canon_str(request->canonical, QCO_SUBJECT);
+	node = quilt_node_create_uri(uri);
+	sameas = quilt_node_create_uri(NS_OWL "sameAs");
+	query = librdf_new_statement_from_nodes(world, NULL, sameas, NULL);
+	stream = librdf_model_find_statements(model, query);
+	for(; stream && !librdf_stream_end(stream); librdf_stream_next(stream))
+	{
+	    st = librdf_stream_get_object(stream);
+		coref = librdf_statement_get_subject(st);
+		if(librdf_node_is_resource(coref))
+		{
+			corefuri = librdf_node_get_uri(coref);
+			newst = quilt_st_create_uri(uri, NS_OWL "sameAs", (const char *) librdf_uri_as_string(corefuri));
+			librdf_model_context_add_statement(model, graph, newst);
+			librdf_free_statement(newst);
+		}
+	}
+	librdf_free_stream(stream);
+	librdf_free_statement(query);
+	free(uri);
 	return 200;
 }
 
