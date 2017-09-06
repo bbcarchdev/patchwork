@@ -18,9 +18,9 @@
 
 ACLOCAL_AMFLAGS = -I m4
 
-DIST_SUBDIRS = m4 docbook-html5 cache
+DIST_SUBDIRS = m4 docbook-html5 cache db
 
-SUBDIRS = cache
+SUBDIRS = cache db .
 
 EXTRA_DIST = LICENSE-2.0 README.md
 
@@ -29,13 +29,14 @@ AM_CPPFLAGS = @AM_CPPFLAGS@ @LIBQUILT_CPPFLAGS@ @LIBSQL_CPPFLAGS@
 quiltmodule_LTLIBRARIES = patchwork.la
 
 patchwork_la_SOURCES = p_patchwork.h \
-	module.c request.c home.c index.c item.c sparql.c db.c \
+	module.c request.c home.c index.c item.c sparql.c \
 	query.c
 
 patchwork_la_LDFLAGS = -no-undefined -module -avoid-version
 
 patchwork_la_LIBADD = \
-	cache/libcache.la
+	cache/libcache.la \
+	db/libdb.la
 
 ## Maintainer targets
 
