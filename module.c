@@ -24,14 +24,24 @@
 
 #include "p_patchwork.h"
 
-AWSS3BUCKET *patchwork_bucket;
-char *patchwork_cachepath;
-SQL *patchwork_db;
-int patchwork_s3_verbose;
-long patchwork_s3_fetch_limit;
-int patchwork_threshold;
+/* A shared pointer to the global state */
+PATCHWORK *patchwork;
 
-struct index_struct *patchwork_indices = NULL;
+/* Global state storage */
+static PATCHWORK patchwork_data;
+
+/* Short names for media classes which can be used for convenience */
+static struct mediamatch_struct patchwork_mediamatch[] = {
+	{ "collection", "http://purl.org/dc/dcmitype/Collection" },
+	{ "dataset", "http://purl.org/dc/dcmitype/Dataset" },
+	{ "video", "http://purl.org/dc/dcmitype/MovingImage" },
+	{ "image", "http://purl.org/dc/dcmitype/StillImage" },
+	{ "interactive", "http://purl.org/dc/dcmitype/InteractiveResource" },
+	{ "software", "http://purl.org/dc/dcmitype/Software" },
+	{ "audio", "http://purl.org/dc/dcmitype/Sound" },
+	{ "text", "http://purl.org/dc/dcmitype/Text" },
+	{ NULL, NULL }
+};
 
 static int patchwork_cache_init_(void);
 static int patchwork_cache_init_s3_(const char *bucket);
@@ -48,29 +58,28 @@ quilt_plugin_init(void)
 	char *t;
 	struct index_struct *everything;
 
+	patchwork = &patchwork_data;
+	patchwork->mediamatch = patchwork_mediamatch;
 	if(quilt_plugin_register_engine(QUILT_PLUGIN_NAME, patchwork_process))
 	{
 		quilt_logf(LOG_CRIT, QUILT_PLUGIN_NAME ": failed to register engine\n");
 		return -1;
 	}
-	patchwork_bucket = NULL;
-	patchwork_db = NULL;
-	patchwork_cachepath = NULL;
-	patchwork_threshold = quilt_config_get_int(QUILT_PLUGIN_NAME ":score", PATCHWORK_THRESHOLD);
-	quilt_logf(LOG_INFO, QUILT_PLUGIN_NAME ": default score threshold set to %d\n", patchwork_threshold);
+	patchwork->threshold = quilt_config_get_int(QUILT_PLUGIN_NAME ":score", PATCHWORK_THRESHOLD);
+	quilt_logf(LOG_INFO, QUILT_PLUGIN_NAME ": default score threshold set to %d\n", patchwork->threshold);
 	if((t = quilt_config_geta(QUILT_PLUGIN_NAME ":db", NULL)))
 	{
-		patchwork_db = sql_connect(t);
-		if(!patchwork_db)
+		patchwork->db = sql_connect(t);
+		if(!patchwork->db)
 		{
 			quilt_logf(LOG_CRIT, QUILT_PLUGIN_NAME ": failed to connect to database <%s>\n", t);
 			free(t);
 			return -1;
 		}
 		free(t);
-		sql_set_querylog(patchwork_db, patchwork_db_querylog_);
-		sql_set_errorlog(patchwork_db, patchwork_db_errorlog_);
-		sql_set_noticelog(patchwork_db, patchwork_db_noticelog_);
+		sql_set_querylog(patchwork->db, patchwork_db_querylog_);
+		sql_set_errorlog(patchwork->db, patchwork_db_errorlog_);
+		sql_set_noticelog(patchwork->db, patchwork_db_noticelog_);
 	}
 	if(patchwork_cache_init_())
 	{
@@ -152,32 +161,32 @@ patchwork_cache_init_s3_(const char *bucket)
 {
 	char *t;
 	
-	patchwork_bucket = aws_s3_create(bucket);
-	if(!patchwork_bucket)
+	patchwork->cache.bucket = aws_s3_create(bucket);
+	if(!patchwork->cache.bucket)
 	{
 		quilt_logf(LOG_CRIT, QUILT_PLUGIN_NAME ": failed to initialise S3 bucket '%s'\n", bucket);
 		return -1;
 	}
 	if((t = quilt_config_geta("s3:endpoint", NULL)))
 	{
-		aws_s3_set_endpoint(patchwork_bucket, t);
+		aws_s3_set_endpoint(patchwork->cache.bucket, t);
 		free(t);
 	}
 	if((t = quilt_config_geta("s3:access", NULL)))
 	{
-		aws_s3_set_access(patchwork_bucket, t);
+		aws_s3_set_access(patchwork->cache.bucket, t);
 		free(t);
 	}
 	if((t = quilt_config_geta("s3:secret", NULL)))
 	{
-		aws_s3_set_secret(patchwork_bucket, t);
+		aws_s3_set_secret(patchwork->cache.bucket, t);
 		free(t);
 	}
 
 	// As its in terms of kbs
-	patchwork_s3_fetch_limit = 1024 * quilt_config_get_int("s3:fetch_limit", DEFAULT_PATCHWORK_FETCH_LIMIT);
+	patchwork->cache.s3_fetch_limit = 1024 * quilt_config_get_int("s3:fetch_limit", DEFAULT_PATCHWORK_FETCH_LIMIT);
 
-	patchwork_s3_verbose = quilt_config_get_bool("s3:verbose", 0);
+	patchwork->cache.s3_verbose = quilt_config_get_bool("s3:verbose", 0);
 	return 0;
 }
 
@@ -190,16 +199,16 @@ patchwork_cache_init_file_(const char *path)
 	{
 		return 0;
 	}
-	patchwork_cachepath = (char *) calloc(1, strlen(path) + 2);
-	if(!patchwork_cachepath)
+	patchwork->cache.path = (char *) calloc(1, strlen(path) + 2);
+	if(!patchwork->cache.path)
 	{
 		quilt_logf(LOG_CRIT, QUILT_PLUGIN_NAME ": failed to allocate memory for cache path buffer\n");
 		return -1;
 	}
-	strcpy(patchwork_cachepath, path);
+	strcpy(patchwork->cache.path, path);
 	if(path[0])
 	{
-		t = strchr(patchwork_cachepath, 0);
+		t = strchr(patchwork->cache.path, 0);
 		t--;
 		if(*t != '/')
 		{
@@ -295,19 +304,19 @@ patchwork_partition_(const char *resource)
 	size_t c;
 	struct index_struct *p;
 
-	for(c = 0; patchwork_indices && patchwork_indices[c].uri; c++)
+	for(c = 0; patchwork->indices && patchwork->indices[c].uri; c++)
 	{
-		if(!strcmp(patchwork_indices[c].uri, resource))
+		if(!strcmp(patchwork->indices[c].uri, resource))
 		{
-			return &(patchwork_indices[c]);
+			return &(patchwork->indices[c]);
 		}
 	}
-	p = (struct index_struct *) realloc(patchwork_indices, sizeof(struct index_struct) * (c + 2));
+	p = (struct index_struct *) realloc(patchwork->indices, sizeof(struct index_struct) * (c + 2));
 	if(!p)
 	{
 		return NULL;
 	}
-	patchwork_indices = p;
+	patchwork->indices = p;
 	memset(&(p[c]), 0, sizeof(struct index_struct));
 	memset(&(p[c + 1]), 0, sizeof(struct index_struct));
 	p[c].uri = strdup(resource);

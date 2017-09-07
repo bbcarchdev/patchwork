@@ -124,7 +124,7 @@ patchwork_query_request(struct query_struct *dest, QUILTREQ *request, const char
 	}
 	if(dest->score == -1)
 	{
-		dest->score = patchwork_threshold;
+		dest->score = patchwork->threshold;
 	}
 	return 200;
 }
@@ -151,7 +151,7 @@ patchwork_query(QUILTREQ *request, struct query_struct *query)
 		}
 		quilt_canon_set_fragment(query->rcanon, "id");	
 	}
-	if(patchwork_db)
+	if(patchwork->db)
 	{
 		r = patchwork_query_db(request, query);
 	}
@@ -564,18 +564,18 @@ patchwork_query_title_(QUILTREQ *request, const char *abstract, struct query_str
 			strcpy(p, " which have related");
 		}
 		p = strchr(p, 0);
-		for(c = 0; patchwork_mediamatch[c].name; c++)
+		for(c = 0; patchwork->mediamatch[c].name; c++)
 		{
-			if(query->media && !strcmp(patchwork_mediamatch[c].uri, query->media))
+			if(query->media && !strcmp(patchwork->mediamatch[c].uri, query->media))
 			{
 				*p = ' ';
 				p++;
-				strcpy(p, patchwork_mediamatch[c].name);
+				strcpy(p, patchwork->mediamatch[c].name);
 				p = strchr(p, 0);
 				break;
 			}
 		}
-		if(!patchwork_mediamatch[c].name)
+		if(!patchwork->mediamatch[c].name)
 		{
 			if(query->media && strcmp(query->media, "any"))
 			{
@@ -634,7 +634,7 @@ patchwork_query_title_(QUILTREQ *request, const char *abstract, struct query_str
 int
 patchwork_membership(QUILTREQ *request)
 {
-	if(patchwork_db)
+	if(patchwork->db)
 	{
 		return patchwork_membership_db(request);
 	}

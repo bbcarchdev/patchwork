@@ -96,7 +96,6 @@ patchwork_add_concrete(QUILTREQ *request)
 {
 	const char *s;
 	char *subject, *abstract, *concrete, *typebuf;
-	librdf_world *world;
 	librdf_statement *st;
 	librdf_node *graph;
 	int explicit;
@@ -223,26 +222,26 @@ patchwork_request_is_partition_(QUILTREQ *request, char **qclass)
 
 	*qclass = NULL;
 	/* First check to determine whether there's a match against the list */
-	for(c = 0; patchwork_indices && patchwork_indices[c].uri; c++)
+	for(c = 0; patchwork->indices && patchwork->indices[c].uri; c++)
 	{
-		if(!strcmp(request->path, patchwork_indices[c].uri))
+		if(!strcmp(request->path, patchwork->indices[c].uri))
 		{
-			if(patchwork_indices[c].qclass)
+			if(patchwork->indices[c].qclass)
 			{
-				*qclass = (char *) calloc(1, 32 + strlen(patchwork_indices[c].qclass));
-				if(patchwork_db)
+				*qclass = (char *) calloc(1, 32 + strlen(patchwork->indices[c].qclass));
+				if(patchwork->db)
 				{
-					strcpy(*qclass, patchwork_indices[c].qclass);
+					strcpy(*qclass, patchwork->indices[c].qclass);
 				}
 				else
 				{
-					sprintf(*qclass, "FILTER ( ?class = <%s> )", patchwork_indices[c].qclass);
+					sprintf(*qclass, "FILTER ( ?class = <%s> )", patchwork->indices[c].qclass);
 				}
 			}
-			request->indextitle = patchwork_indices[c].title;
+			request->indextitle = patchwork->indices[c].title;
 			request->index = 1;
 			request->home = 0;
-			quilt_canon_add_path(request->canonical, patchwork_indices[c].uri);
+			quilt_canon_add_path(request->canonical, patchwork->indices[c].uri);
 			return 1;
 		}
 	}
@@ -252,7 +251,7 @@ patchwork_request_is_partition_(QUILTREQ *request, char **qclass)
 	{
 		quilt_canon_set_param(request->canonical, "class", t);
 		*qclass = (char *) calloc(1, 32 + strlen(t));
-		if(patchwork_db)
+		if(patchwork->db)
 		{
 			strcpy(*qclass, t);
 		}
@@ -381,7 +380,7 @@ patchwork_request_audiences_(QUILTREQ *req, struct patchwork_dynamic_endpoint *e
 		quilt_canon_destroy(entry);
 		quilt_canon_destroy(dest);
 	}
-	if(patchwork_db)
+	if(patchwork->db)
 	{
 		if((r = patchwork_audiences_db(req, &query)) != 200)
 		{

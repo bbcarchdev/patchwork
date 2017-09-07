@@ -24,8 +24,6 @@
 
 #include "p_patchwork.h"
 
-extern long patchwork_s3_fetch_limit;
-
 struct data_struct
 {
 	char *buf;
@@ -56,7 +54,7 @@ patchwork_item_s3(QUILTREQ *request)
 	quilt_canon_add_path(request->canonical, request->path);
 	quilt_canon_set_fragment(request->canonical, "id");
 	memset(&data, 0, sizeof(struct data_struct));
-	req = aws_s3_request_create(patchwork_bucket, request->path, "GET");
+	req = aws_s3_request_create(patchwork->cache.bucket, request->path, "GET");
 	if(!req)
 	{
 		quilt_logf(LOG_CRIT, QUILT_PLUGIN_NAME ": S3: failed to create S3 request\n");
@@ -65,7 +63,7 @@ patchwork_item_s3(QUILTREQ *request)
 	ch = aws_request_curl(req);
 	curl_easy_setopt(ch, CURLOPT_HEADER, 0);
 	curl_easy_setopt(ch, CURLOPT_NOSIGNAL, 1);
-	curl_easy_setopt(ch, CURLOPT_VERBOSE, patchwork_s3_verbose);
+	curl_easy_setopt(ch, CURLOPT_VERBOSE, patchwork->cache.s3_verbose);
 	curl_easy_setopt(ch, CURLOPT_WRITEDATA, (void *) &data);
 	curl_easy_setopt(ch, CURLOPT_WRITEFUNCTION, patchwork_s3_write_);
 	if(aws_request_perform(req) != CURLE_OK)
@@ -135,9 +133,9 @@ patchwork_s3_write_(char *ptr, size_t size, size_t nemb, void *userdata)
 
 	size *= nemb;
 
-	if(patchwork_s3_fetch_limit && size > patchwork_s3_fetch_limit)
+	if(patchwork->cache.s3_fetch_limit && size > patchwork->cache.s3_fetch_limit)
 	{
-		quilt_logf(LOG_WARNING, QUILT_PLUGIN_NAME ": S3: failing write due to size exceeding fetch limit. input_size:%u > fetch_limit:%u \n", size, patchwork_s3_fetch_limit);
+		quilt_logf(LOG_WARNING, QUILT_PLUGIN_NAME ": S3: failing write due to size exceeding fetch limit. input_size:%u > fetch_limit:%u \n", size, patchwork->cache.s3_fetch_limit);
 		return 0;
 	}
 

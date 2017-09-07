@@ -68,11 +68,28 @@
 # define NS_OSD                         "http://a9.com/-/spec/opensearch/1.1/"
 # define NS_OLO                         "http://purl.org/ontology/olo/core#"
 
+typedef struct patchwork_struct PATCHWORK;
+
 typedef enum
 {
 	QM_DEFAULT = 0,
 	QM_AUTOCOMPLETE = 1
 } PATCHWORKQMODE;
+
+struct patchwork_struct
+{
+	struct
+	{
+		AWSS3BUCKET *bucket;
+		char *path;
+		int s3_verbose;
+		long s3_fetch_limit;
+	} cache;	  
+	SQL *db;
+	int threshold;
+	struct index_struct *indices;
+	struct mediamatch_struct *mediamatch;
+};
 
 struct index_struct
 {
@@ -123,13 +140,7 @@ struct patchwork_dynamic_endpoint
 	int (*process)(QUILTREQ *req, struct patchwork_dynamic_endpoint *endpoint);
 };
 
-extern SQL *patchwork_db;
-extern AWSS3BUCKET *patchwork_bucket;
-extern char *patchwork_cachepath;
-extern int patchwork_s3_verbose;
-extern struct index_struct *patchwork_indices;
-extern struct mediamatch_struct patchwork_mediamatch[];
-extern int patchwork_threshold;
+extern PATCHWORK *patchwork;
 
 int patchwork_process(QUILTREQ *request);
 

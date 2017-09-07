@@ -32,7 +32,7 @@ int
 patchwork_lookup(QUILTREQ *request, const char *target)
 {
 	quilt_canon_set_param(request->canonical, "uri", target);
-	if(patchwork_db)
+	if(patchwork->db)
 	{
 		return patchwork_lookup_db(request, target);
 	}
@@ -45,11 +45,11 @@ patchwork_item(QUILTREQ *request)
 {
 	int r;
 
-	if(patchwork_bucket)
+	if(patchwork->cache.bucket)
 	{
 		r = patchwork_item_s3(request);
 	}
-	else if(patchwork_cachepath)
+	else if(patchwork->cache.path)
 	{
 		r = patchwork_item_file(request);
 	}
@@ -57,7 +57,7 @@ patchwork_item(QUILTREQ *request)
 	{
 		r = patchwork_item_sparql(request);
 	}
-	if(r != 200 && patchwork_db)
+	if(r != 200 && patchwork->db)
 	{
 		/* If no data was retrieved from caches, synthesise it
 		 * from the database (#106)

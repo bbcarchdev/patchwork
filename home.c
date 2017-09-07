@@ -52,7 +52,7 @@ patchwork_home(QUILTREQ *request)
 	/* Add class partitions */
 	partcanon = NULL;
 	partstr = NULL;
-	for(c = 0; patchwork_indices && patchwork_indices[c].uri; c++)
+	for(c = 0; patchwork->indices && patchwork->indices[c].uri; c++)
 	{
 		partcanon = quilt_canon_create(request->canonical);
 		if(!partcanon)
@@ -62,14 +62,14 @@ patchwork_home(QUILTREQ *request)
 		}
 		quilt_canon_reset_path(partcanon);
 		quilt_canon_set_name(partcanon, NULL);
-		quilt_canon_add_path(partcanon, patchwork_indices[c].uri);
+		quilt_canon_add_path(partcanon, patchwork->indices[c].uri);
 		partstr = quilt_canon_str(partcanon, QCO_ABSTRACT);
 		if(!partstr)
 		{
 			r = -1;
 			break;
 		}
-		if(patchwork_indices[c].qclass)
+		if(patchwork->indices[c].qclass)
 		{
 			st = quilt_st_create_uri(abstract, NS_VOID "classPartition", partstr);
 		}
@@ -85,7 +85,7 @@ patchwork_home(QUILTREQ *request)
 		librdf_model_context_add_statement(request->model, graph, st);
 		librdf_free_statement(st);
 	
-		st = quilt_st_create_literal(partstr, NS_RDFS "label", patchwork_indices[c].title, "en");
+		st = quilt_st_create_literal(partstr, NS_RDFS "label", patchwork->indices[c].title, "en");
 		if(!st)
 		{
 			r = -1;
@@ -103,9 +103,9 @@ patchwork_home(QUILTREQ *request)
 		librdf_model_context_add_statement(request->model, graph, st);
 		librdf_free_statement(st);
 
-		if(patchwork_indices[c].qclass)
+		if(patchwork->indices[c].qclass)
 		{
-			st = quilt_st_create_uri(partstr, NS_VOID "class", patchwork_indices[c].qclass);
+			st = quilt_st_create_uri(partstr, NS_VOID "class", patchwork->indices[c].qclass);
 			if(!st)
 			{
 				r = -1;

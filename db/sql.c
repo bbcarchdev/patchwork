@@ -69,19 +69,6 @@ static int patchwork_query_db_media_(struct db_qbuf_struct *qbuf, struct query_s
 /* Render a db_item_struct into a model */
 static int patchwork_item_db_render_(struct db_item_struct *item);
 
-/* Short names for media classes which can be used for convenience */
-struct mediamatch_struct patchwork_mediamatch[] = {
-	{ "collection", "http://purl.org/dc/dcmitype/Collection" },
-	{ "dataset", "http://purl.org/dc/dcmitype/Dataset" },
-	{ "video", "http://purl.org/dc/dcmitype/MovingImage" },
-	{ "image", "http://purl.org/dc/dcmitype/StillImage" },
-	{ "interactive", "http://purl.org/dc/dcmitype/InteractiveResource" },
-	{ "software", "http://purl.org/dc/dcmitype/Software" },
-	{ "audio", "http://purl.org/dc/dcmitype/Sound" },
-	{ "text", "http://purl.org/dc/dcmitype/Text" },
-	{ NULL, NULL }
-};
-
 /* Const for audience defaults */
 const char *default_audience[2] = {"all", NULL};
 
@@ -163,11 +150,11 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 		}
 		if(strcmp(query->media, "any"))
 		{
-			for(c = 0; patchwork_mediamatch[c].name; c++)
+			for(c = 0; patchwork->mediamatch[c].name; c++)
 			{
-				if(!strcmp(patchwork_mediamatch[c].name, query->media))
+				if(!strcmp(patchwork->mediamatch[c].name, query->media))
 				{
-					query->media = patchwork_mediamatch[c].uri;
+					query->media = patchwork->mediamatch[c].uri;
 					break;
 				}
 			}
@@ -331,7 +318,7 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 	{
 		appendf(&qbuf, " LIMIT %d", request->limit + 1);
 	}
-	rs = sql_queryf(patchwork_db, qbuf.buf, qbuf.args[0], qbuf.args[1], qbuf.args[2], qbuf.args[3], qbuf.args[4], qbuf.args[5], qbuf.args[6], qbuf.args[7]);
+	rs = sql_queryf(patchwork->db, qbuf.buf, qbuf.args[0], qbuf.args[1], qbuf.args[2], qbuf.args[3], qbuf.args[4], qbuf.args[5], qbuf.args[6], qbuf.args[7]);
 	free(qbuf.buf);
 	if(!rs)
 	{
@@ -442,7 +429,7 @@ patchwork_item_db(QUILTREQ *request)
 	item.model = quilt_request_model(request);
 	item.graph = quilt_request_graph(request);
 	item.id = id;
-	rs = sql_queryf(patchwork_db, "SELECT \"sameas\" FROM \"proxy\" WHERE \"id\" = %Q", item.id);
+	rs = sql_queryf(patchwork->db, "SELECT \"sameas\" FROM \"proxy\" WHERE \"id\" = %Q", item.id);
 	if(!rs)
 	{
 		return 500;
@@ -461,7 +448,7 @@ patchwork_item_db(QUILTREQ *request)
 	item.sameas = (const char *) strdup(t);
 	sql_stmt_destroy(rs);
 	/* Attempt to fetch index information about the item */
-	rs = sql_queryf(patchwork_db, "SELECT \"classes\", \"title\", \"description\", \"coordinates\" FROM \"index\" WHERE \"id\" = %Q", item.id);
+	rs = sql_queryf(patchwork->db, "SELECT \"classes\", \"title\", \"description\", \"coordinates\" FROM \"index\" WHERE \"id\" = %Q", item.id);
 	if(rs && !sql_stmt_eof(rs))
 	{
 		item.classes = sql_stmt_str(rs, 0);
@@ -520,7 +507,7 @@ patchwork_membership_db(QUILTREQ *request)
 	/* #109: If we are generating the membership graph, we should use query
 	 * parameters for pagination, and ignore them otherwise
 	 */
-	rs = sql_queryf(patchwork_db, "SELECT \"collection\" FROM \"membership\" WHERE \"id\" = %Q LIMIT %d", id, request->limit);
+	rs = sql_queryf(patchwork->db, "SELECT \"collection\" FROM \"membership\" WHERE \"id\" = %Q LIMIT %d", id, request->limit);
 	if(!rs)
 	{
 		free(self);
@@ -560,7 +547,7 @@ patchwork_lookup_db(QUILTREQ *request, const char *target)
 	const char *t;
 	char *buf, *p;
 
-	rs = sql_queryf(patchwork_db, "SELECT \"id\" FROM \"proxy\" WHERE %Q = ANY(\"sameas\")", target);
+	rs = sql_queryf(patchwork->db, "SELECT \"id\" FROM \"proxy\" WHERE %Q = ANY(\"sameas\")", target);
 	if(!rs)
 	{
 		return 500;
@@ -630,11 +617,11 @@ patchwork_audiences_db(QUILTREQ *request, struct query_struct *query)
 	}
 	if(offset)
 	{
-		rs = sql_queryf(patchwork_db, "SELECT \"a\".\"uri\", \"a\".\"id\", \"i\".\"title\" FROM \"audiences\" \"a\" LEFT JOIN \"index\" \"i\" ON \"i\".\"id\" = \"a\".\"id\" LIMIT %d OFFSET %d", limit + 1, offset);
+		rs = sql_queryf(patchwork->db, "SELECT \"a\".\"uri\", \"a\".\"id\", \"i\".\"title\" FROM \"audiences\" \"a\" LEFT JOIN \"index\" \"i\" ON \"i\".\"id\" = \"a\".\"id\" LIMIT %d OFFSET %d", limit + 1, offset);
 	}
 	else
 	{
-		rs = sql_queryf(patchwork_db, "SELECT \"a\".\"uri\", \"a\".\"id\", \"i\".\"title\" FROM \"audiences\" \"a\" LEFT JOIN \"index\" \"i\" ON \"i\".\"id\" = \"a\".\"id\" LIMIT %d", limit + 1);
+		rs = sql_queryf(patchwork->db, "SELECT \"a\".\"uri\", \"a\".\"id\", \"i\".\"title\" FROM \"audiences\" \"a\" LEFT JOIN \"index\" \"i\" ON \"i\".\"id\" = \"a\".\"id\" LIMIT %d", limit + 1);
 	}
 	if(!rs)
 	{

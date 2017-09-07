@@ -3,7 +3,7 @@
  *
  * Author: Mo McRoberts <mo.mcroberts@bbc.co.uk>
  *
- * Copyright (c) 2014-2015 BBC
+ * Copyright (c) 2014-2017 BBC
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -53,12 +53,12 @@ patchwork_item_file(QUILTREQ *request)
 	{
 		return 404;
 	}
-	buf = (char *) calloc(1, strlen(patchwork_cachepath) + strlen(p) + 16);
+	buf = (char *) calloc(1, strlen(patchwork->cache.path) + strlen(p) + 16);
 	if(!buf)
 	{
 		return 500;
 	}
-	strcpy(buf, patchwork_cachepath);
+	strcpy(buf, patchwork->cache.path);
 	strcat(buf, p);
 	f = fopen(buf, "rb");
 	if(!f)
