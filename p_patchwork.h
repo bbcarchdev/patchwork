@@ -86,6 +86,7 @@ struct patchwork_struct
 		long s3_fetch_limit;
 	} cache;	  
 	SQL *db;
+	int db_version;
 	int threshold;
 	struct index_struct *indices;
 	struct mediamatch_struct *mediamatch;

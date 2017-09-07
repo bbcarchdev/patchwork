@@ -24,6 +24,7 @@
 
 #include "p_patchwork.h"
 
+static int patchwork_db_version_(SQL *restrict sql, const char *restrict modulename);
 static int patchwork_db_querylog_(SQL *restrict sql, const char *query);
 static int patchwork_db_noticelog_(SQL *restrict sql, const char *notice);
 static int patchwork_db_errorlog_(SQL *restrict sql, const char *sqlstate, const char *message);
@@ -46,8 +47,33 @@ patchwork_db_init(void)
 		sql_set_querylog(patchwork->db, patchwork_db_querylog_);
 		sql_set_errorlog(patchwork->db, patchwork_db_errorlog_);
 		sql_set_noticelog(patchwork->db, patchwork_db_noticelog_);
+		patchwork->db_version = patchwork_db_version_(patchwork->db, "com.github.bbcarchdev.spindle.twine");
+		quilt_logf(LOG_INFO, QUILT_PLUGIN_NAME ": connected to Spindle database version %d\n", patchwork->db_version);
 	}
 	return 0;
+}
+
+static int
+patchwork_db_version_(SQL *restrict sql, const char *restrict modulename)
+{
+	SQL_STATEMENT *rs;
+	long l;
+
+	rs = sql_queryf(sql, "SELECT \"version\" FROM \"_version\" WHERE \"ident\" = %Q", modulename);
+	if(!rs)
+	{
+		quilt_logf(LOG_ERR, QUILT_PLUGIN_NAME ": failed to obtain database schema version from database\n");
+		return 0;
+	}
+	if(sql_stmt_eof(rs))
+	{
+		quilt_logf(LOG_ERR, QUILT_PLUGIN_NAME ": no Spindle schema found in database\n");
+		sql_stmt_destroy(rs);
+		return 0;
+	}
+	l = sql_stmt_long(rs, 0);
+	sql_stmt_destroy(rs);
+	return (int) l;
 }
 
 static int
