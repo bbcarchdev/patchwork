@@ -2,7 +2,7 @@
 ##
 ## Author: Mo McRoberts <mo.mcroberts@bbc.co.uk>
 ##
-## Copyright (c) 2014-2016 BBC
+## Copyright (c) 2014-2017 BBC
 ##
 ##  Licensed under the Apache License, Version 2.0 (the "License");
 ##  you may not use this file except in compliance with the License.
@@ -24,4 +24,4 @@ AM_CPPFLAGS = @AM_CPPFLAGS@ \
 
 noinst_LTLIBRARIES = libcache.la
 
-libcache_la_SOURCES = file.c s3.c
+libcache_la_SOURCES = cache.c file.c s3.c

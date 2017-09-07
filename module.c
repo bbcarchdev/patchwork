@@ -43,16 +43,12 @@ static struct mediamatch_struct patchwork_mediamatch[] = {
 	{ NULL, NULL }
 };
 
-static int patchwork_cache_init_(void);
-static int patchwork_cache_init_s3_(const char *bucket);
-static int patchwork_cache_init_file_(const char *path);
 static struct index_struct *patchwork_partition_(const char *resource);
 static int patchwork_partition_cb_(const char *key, const char *value, void *data);
 
 int
 quilt_plugin_init(void)
 {
-	char *t;
 	struct index_struct *everything;
 
 	patchwork = &patchwork_data;
@@ -68,7 +64,7 @@ quilt_plugin_init(void)
 	{
 		return -1;
 	}
-	if(patchwork_cache_init_())
+	if(patchwork_cache_init())
 	{
 		return -1;
 	}
@@ -95,116 +91,6 @@ patchwork_array_contains(const char *const *array, const char *string)
 		}
 	}
 	quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": array_contains %s FALSE\n", string);
-	return 0;
-}
-
-static int
-patchwork_cache_init_(void)
-{
-	URI *base, *uri;
-	URI_INFO *info;
-	char *t;
-	int r;
-	
-	if((t = quilt_config_geta(QUILT_PLUGIN_NAME ":cache", NULL)))
-	{
-		base = uri_create_cwd();
-		uri = uri_create_str(t, base);
-		info = uri_info(uri);
-		uri_destroy(uri);
-		uri_destroy(base);
-		if(!strcmp(info->scheme, "s3"))
-		{
-			r = patchwork_cache_init_s3_(info->host);
-		}
-		else if(!strcmp(info->scheme, "file"))
-		{
-			r = patchwork_cache_init_file_(info->path);
-		}
-		else
-		{
-			quilt_logf(LOG_CRIT, QUILT_PLUGIN_NAME ": cache scheme '%s' is not supported in URI <%s>\n", info->scheme, t);
-			r = -1;
-		}
-		uri_info_destroy(info);
-		free(t);
-		
-	}
-	else if((t = quilt_config_geta(QUILT_PLUGIN_NAME ":bucket", NULL)))
-	{
-		quilt_logf(LOG_WARNING, QUILT_PLUGIN_NAME ": the 'bucket' configuration option is deprecated; you should specify an S3 bucket URI as the value of the 'cache' option instead\n");
-		r = patchwork_cache_init_s3_(t);
-		free(t);
-	}
-	else
-	{
-		r = 0;
-	}
-	return r;
-}
-
-static int
-patchwork_cache_init_s3_(const char *bucket)
-{
-	char *t;
-	
-	patchwork->cache.bucket = aws_s3_create(bucket);
-	if(!patchwork->cache.bucket)
-	{
-		quilt_logf(LOG_CRIT, QUILT_PLUGIN_NAME ": failed to initialise S3 bucket '%s'\n", bucket);
-		return -1;
-	}
-	if((t = quilt_config_geta("s3:endpoint", NULL)))
-	{
-		aws_s3_set_endpoint(patchwork->cache.bucket, t);
-		free(t);
-	}
-	if((t = quilt_config_geta("s3:access", NULL)))
-	{
-		aws_s3_set_access(patchwork->cache.bucket, t);
-		free(t);
-	}
-	if((t = quilt_config_geta("s3:secret", NULL)))
-	{
-		aws_s3_set_secret(patchwork->cache.bucket, t);
-		free(t);
-	}
-
-	// As its in terms of kbs
-	patchwork->cache.s3_fetch_limit = 1024 * quilt_config_get_int("s3:fetch_limit", DEFAULT_PATCHWORK_FETCH_LIMIT);
-
-	patchwork->cache.s3_verbose = quilt_config_get_bool("s3:verbose", 0);
-	return 0;
-}
-
-static int
-patchwork_cache_init_file_(const char *path)
-{
-	char *t;
-	
-	if(!path || !path[0])
-	{
-		return 0;
-	}
-	patchwork->cache.path = (char *) calloc(1, strlen(path) + 2);
-	if(!patchwork->cache.path)
-	{
-		quilt_logf(LOG_CRIT, QUILT_PLUGIN_NAME ": failed to allocate memory for cache path buffer\n");
-		return -1;
-	}
-	strcpy(patchwork->cache.path, path);
-	if(path[0])
-	{
-		t = strchr(patchwork->cache.path, 0);
-		t--;
-		if(*t != '/')
-		{
-			t++;
-			*t = '/';
-			t++;
-			*t = 0;
-		}
-	}
 	return 0;
 }
 

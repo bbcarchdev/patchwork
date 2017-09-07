@@ -181,11 +181,13 @@ int patchwork_query_sparql(QUILTREQ *request, struct query_struct *query);
 int patchwork_lookup_sparql(QUILTREQ *request, const char *target);
 int patchwork_item_sparql(QUILTREQ *req);
 
+/* Caches */
+int patchwork_cache_init(void);
+
 /* S3 cache back-end */
 int patchwork_item_s3(QUILTREQ *req);
 
 /* File cache back-end */
 int patchwork_item_file(QUILTREQ *request);
-
 
 #endif /*!P_patchwork_H_*/
