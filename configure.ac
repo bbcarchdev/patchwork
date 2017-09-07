@@ -68,6 +68,7 @@ BT_DEFINE_PREFIX
 AC_CONFIG_FILES([Makefile
 cache/Makefile
 db/Makefile
+graphstore/Makefile
 m4/Makefile
 docbook-html5/Makefile
 ])

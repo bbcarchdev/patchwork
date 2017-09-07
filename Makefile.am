@@ -2,7 +2,7 @@
 ##
 ## Author: Mo McRoberts <mo.mcroberts@bbc.co.uk>
 ##
-## Copyright (c) 2014-2016 BBC
+## Copyright (c) 2014-2017 BBC
 ##
 ##  Licensed under the Apache License, Version 2.0 (the "License");
 ##  you may not use this file except in compliance with the License.
@@ -18,25 +18,26 @@
 
 ACLOCAL_AMFLAGS = -I m4
 
-DIST_SUBDIRS = m4 docbook-html5 cache db
+DIST_SUBDIRS = m4 docbook-html5 cache db graphstore
 
-SUBDIRS = cache db .
+SUBDIRS = cache db graphstore .
 
 EXTRA_DIST = LICENSE-2.0 README.md
 
-AM_CPPFLAGS = @AM_CPPFLAGS@ @LIBQUILT_CPPFLAGS@ @LIBSQL_CPPFLAGS@
+AM_CPPFLAGS = @AM_CPPFLAGS@ @LIBQUILT_CPPFLAGS@ @LIBSQL_CPPFLAGS@ \
+	@LIBSPARQLCLIENT_CPPFLAGS@
 
 quiltmodule_LTLIBRARIES = patchwork.la
 
 patchwork_la_SOURCES = p_patchwork.h \
-	module.c request.c home.c index.c item.c sparql.c \
-	query.c
+	module.c request.c home.c index.c item.c query.c
 
 patchwork_la_LDFLAGS = -no-undefined -module -avoid-version
 
 patchwork_la_LIBADD = \
 	cache/libcache.la \
-	db/libdb.la
+	db/libdb.la \
+	graphstore/libgraphstore.la
 
 ## Maintainer targets
 
