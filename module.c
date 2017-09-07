@@ -46,9 +46,6 @@ static struct mediamatch_struct patchwork_mediamatch[] = {
 static int patchwork_cache_init_(void);
 static int patchwork_cache_init_s3_(const char *bucket);
 static int patchwork_cache_init_file_(const char *path);
-static int patchwork_db_querylog_(SQL *restrict sql, const char *query);
-static int patchwork_db_noticelog_(SQL *restrict sql, const char *notice);
-static int patchwork_db_errorlog_(SQL *restrict sql, const char *sqlstate, const char *message);
 static struct index_struct *patchwork_partition_(const char *resource);
 static int patchwork_partition_cb_(const char *key, const char *value, void *data);
 
@@ -67,19 +64,9 @@ quilt_plugin_init(void)
 	}
 	patchwork->threshold = quilt_config_get_int(QUILT_PLUGIN_NAME ":score", PATCHWORK_THRESHOLD);
 	quilt_logf(LOG_INFO, QUILT_PLUGIN_NAME ": default score threshold set to %d\n", patchwork->threshold);
-	if((t = quilt_config_geta(QUILT_PLUGIN_NAME ":db", NULL)))
+	if(patchwork_db_init())
 	{
-		patchwork->db = sql_connect(t);
-		if(!patchwork->db)
-		{
-			quilt_logf(LOG_CRIT, QUILT_PLUGIN_NAME ": failed to connect to database <%s>\n", t);
-			free(t);
-			return -1;
-		}
-		free(t);
-		sql_set_querylog(patchwork->db, patchwork_db_querylog_);
-		sql_set_errorlog(patchwork->db, patchwork_db_errorlog_);
-		sql_set_noticelog(patchwork->db, patchwork_db_noticelog_);
+		return -1;
 	}
 	if(patchwork_cache_init_())
 	{
@@ -218,33 +205,6 @@ patchwork_cache_init_file_(const char *path)
 			*t = 0;
 		}
 	}
-	return 0;
-}
-
-static int
-patchwork_db_querylog_(SQL *restrict sql, const char *query)
-{
-	(void) sql;
-
-	quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": SQL: %s\n", query);
-	return 0;
-}
-
-static int
-patchwork_db_noticelog_(SQL *restrict sql, const char *notice)
-{
-	(void) sql;
-
-	quilt_logf(LOG_NOTICE, QUILT_PLUGIN_NAME ": %s\n", notice);
-	return 0;
-}
-
-static int
-patchwork_db_errorlog_(SQL *restrict sql, const char *sqlstate, const char *message)
-{
-	(void) sql;
-
-	quilt_logf(LOG_ERR, QUILT_PLUGIN_NAME ": [%s] %s\n", sqlstate, message);
 	return 0;
 }
 

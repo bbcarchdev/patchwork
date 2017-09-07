@@ -24,4 +24,4 @@ AM_CPPFLAGS = @AM_CPPFLAGS@ \
 
 noinst_LTLIBRARIES = libdb.la
 
-libdb_la_SOURCES = sql.c
+libdb_la_SOURCES = db.c sql.c

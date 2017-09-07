@@ -168,6 +168,8 @@ int patchwork_query_osd(QUILTREQ *request);
 int patchwork_membership(QUILTREQ *request);
 
 /* SQL back-end */
+int patchwork_db_init(void);
+
 int patchwork_query_db(QUILTREQ *request, struct query_struct *query);
 int patchwork_lookup_db(QUILTREQ *request, const char *target);
 int patchwork_audiences_db(QUILTREQ *request, struct query_struct *query);
