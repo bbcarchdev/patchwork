@@ -163,7 +163,7 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 	/* If we're performing any kind of media query, ensure the parameters
 	 * have defaults
 	 */
-	if(query->media || query->audience || query->type)
+	if(query->media || query->audience || query->type || query->duration_min || query->duration_max)
 	{
 		if(!query->media)
 		{
@@ -372,6 +372,22 @@ patchwork_query_db_media_(struct db_qbuf_struct *qbuf, struct query_struct *quer
 			appendf(qbuf, " AND \"m\".\"type\" = %%Q");
 			qbuf->args[qbuf->n] = query->type;
 			qbuf->n++;
+		}
+		/* Add duration constraints, if the database schema version is new enough */
+		if(patchwork->db_version >= 28)
+		{
+			if(query->duration_min)
+			{
+				appendf(qbuf, " AND \"m\".\"duration\" >= %d");
+				qbuf->args[qbuf->n] = (void *) (ptrdiff_t) query->duration_min;
+				qbuf->n++;
+			}
+			if(query->duration_max)
+			{
+				appendf(qbuf, " AND \"m\".\"duration\" <= %d");
+				qbuf->args[qbuf->n] = (void *) (ptrdiff_t) query->duration_max;
+				qbuf->n++;
+			}
 		}
 	}
 	return 0;

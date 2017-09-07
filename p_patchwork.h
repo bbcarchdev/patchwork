@@ -126,6 +126,9 @@ struct query_struct
 	int more;
 	/* Score threshold */
 	int score;
+	/* Minimum and maximum durations of media */
+	int duration_min;
+	int duration_max;
 };
 
 struct mediamatch_struct

@@ -81,7 +81,16 @@ patchwork_query_request(struct query_struct *dest, QUILTREQ *request, const char
 	{
 		quilt_canon_set_param(request->canonical, "media", dest->media);
 	}
-
+	dest->duration_min = quilt_request_getparam_int(request, "duration-min");
+	if(dest->duration_min)
+	{
+		quilt_canon_set_param_int(request->canonical, "duration-min", dest->duration_min);
+	}
+	dest->duration_max = quilt_request_getparam_int(request, "duration-max");
+	if(dest->duration_max)
+	{
+		quilt_canon_set_param_int(request->canonical, "duration-max", dest->duration_max);
+	}
 	// Process for= parameters
 	dest->audience = quilt_request_getparam_multi(request, "for");
 	if(dest->audience)
