@@ -103,6 +103,10 @@ struct query_struct
 {
 	/* Query mode */
 	PATCHWORKQMODE mode;
+	/* What's the base URI for this result-set? */
+	char *base;
+	/* What's the actual URI for this page of results? */
+	char *resource;
 	/* Is this an explicit search for something, or just an index of items? */
 	int explicit;
 	/* Query within a collection */
@@ -160,6 +164,8 @@ int patchwork_array_contains(const char *const *array, const char *value);
 
 /* Initialise a query structure */
 int patchwork_query_init(struct query_struct *dest);
+/* Free resources used by a query structure */
+int patchwork_query_free(struct query_struct *query);
 /* Populate an empty query_struct from a QUILTREQ */
 int patchwork_query_request(struct query_struct *dest, QUILTREQ *req, const char *qclass);
 /* Perform a query */

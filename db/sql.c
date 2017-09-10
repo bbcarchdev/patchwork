@@ -687,16 +687,10 @@ process_rs(QUILTREQ *request, struct query_struct *query, SQL_STATEMENT *rs)
 	QUILTCANON *item;
 	int c, r;
 	const char *t;
-	char idbuf[36], *p, *self;	
+	char idbuf[36], *p;
+	const char *self;	
 	
-	if(request->index)
-	{
-		self = quilt_canon_str(request->canonical, (request->ext ? QCO_ABSTRACT : QCO_REQUEST));
-	}
-	else
-	{
-		self = quilt_canon_str(request->canonical, QCO_NOEXT|QCO_FRAGMENT);
-	}
+	self = query->resource;
 	for(c = 0; !sql_stmt_eof(rs) && c < request->limit; sql_stmt_next(rs))
 	{
 		item = quilt_canon_create(request->canonical);
@@ -727,7 +721,6 @@ process_rs(QUILTREQ *request, struct query_struct *query, SQL_STATEMENT *rs)
 		query->more = 1;
 	}
 	sql_stmt_destroy(rs);
-	free(self);
 	return 200;
 }
 

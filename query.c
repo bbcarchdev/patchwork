@@ -24,7 +24,7 @@
 
 #include "p_patchwork.h"
 
-static char *patchwork_query_subjtitle_(QUILTREQ *request, const char *primary, const char *secondary);
+static char *patchwork_query_subjtitle_(QUILTREQ *request, const char *abstract, const char *primary, const char *secondary);
 static int patchwork_query_title_(QUILTREQ *request, const char *abstract, struct query_struct *query);
 
 
@@ -85,11 +85,13 @@ patchwork_query_request(struct query_struct *dest, QUILTREQ *request, const char
 	if(dest->duration_min)
 	{
 		quilt_canon_set_param_int(request->canonical, "duration-min", dest->duration_min);
+		dest->explicit = 1;
 	}
 	dest->duration_max = quilt_request_getparam_int(request, "duration-max");
 	if(dest->duration_max)
 	{
 		quilt_canon_set_param_int(request->canonical, "duration-max", dest->duration_max);
+		dest->explicit = 1;
 	}
 	// Process for= parameters
 	dest->audience = quilt_request_getparam_multi(request, "for");
@@ -112,6 +114,7 @@ patchwork_query_request(struct query_struct *dest, QUILTREQ *request, const char
 	t = quilt_request_getparam(request, "mode");
 	if(t && t[0])
 	{
+		dest->explicit = 1;
 		if(!strcmp(t, "autocomplete"))
 		{
 			dest->mode = QM_AUTOCOMPLETE;
@@ -128,6 +131,7 @@ patchwork_query_request(struct query_struct *dest, QUILTREQ *request, const char
 	t = quilt_request_getparam(request, "score");
 	if(t && t[0])
 	{
+		dest->explicit = 1;
 		dest->score = atoi(t);
 		quilt_canon_set_param(request->canonical, "score", t);
 	}
@@ -138,6 +142,15 @@ patchwork_query_request(struct query_struct *dest, QUILTREQ *request, const char
 	return 200;
 }
 
+/* Free resources used by a query structure */
+int
+patchwork_query_free(struct query_struct *query)
+{
+	free(query->base);
+	free(query->resource);
+	return 0;
+}
+
 /* Perform a query (using either a database or SPARQL back-ends) */
 int
 patchwork_query(QUILTREQ *request, struct query_struct *query)
@@ -145,6 +158,18 @@ patchwork_query(QUILTREQ *request, struct query_struct *query)
 	int r;
 	size_t l;
 
+	if(!query->base)
+	{
+		query->base = quilt_canon_str(request->canonical, QCO_ABSTRACT);
+	}
+	if(!query->resource)
+	{
+		query->resource = quilt_canon_str(request->canonical, QCO_DEFAULT|QCO_USERSUPPLIED);
+		if(query->explicit || request->index)
+		{
+			quilt_request_set_subject_uristr(request, query->resource);
+		}
+	}
 	if(query->related)
 	{
 		query->rcanon = quilt_canon_create(NULL);
@@ -180,22 +205,12 @@ int
 patchwork_query_meta(QUILTREQ *request, struct query_struct *query)
 {
 	QUILTCANON *link;
-	char *root, *linkstr, *abstract;
+	char *linkstr;
 	int c;
 	librdf_statement *st;
+	librdf_node *graph;
 
-	if(request->index)
-	{
-		/* If this is an index, then the dataset is the abstract document URI */
-		abstract = quilt_canon_str(request->canonical, (request->ext ? QCO_ABSTRACT : QCO_REQUEST));
-		root = quilt_canon_str(request->canonical, QCO_ABSTRACT|QCO_NOPARAMS);
-	}
-	else
-	{
-		/* If this is an item, then the dataset is the actual item */
-		abstract = quilt_canon_str(request->canonical, QCO_NOEXT|QCO_FRAGMENT);
-		root = quilt_canon_str(request->canonical, QCO_SUBJECT|QCO_NOPARAMS);
-	}
+	graph = quilt_request_graph(request);
 	if(request->offset)
 	{
 		/* If the request had an offset, link to the previous page */
@@ -213,16 +228,9 @@ patchwork_query_meta(QUILTREQ *request, struct query_struct *query)
 		{
 			quilt_canon_set_param(link, "offset", NULL);
 		}
-		if(request->index)
-		{
-			linkstr = quilt_canon_str(link, QCO_ABSTRACT);
-		}
-		else
-		{
-			linkstr = quilt_canon_str(link, QCO_NOEXT|QCO_FRAGMENT);
-		}
-		st = quilt_st_create_uri(abstract, NS_XHTML "prev", linkstr);
-		librdf_model_add_statement(request->model, st);
+		linkstr = quilt_canon_str(link, QCO_DEFAULT);
+		st = quilt_st_create_uri(query->resource, NS_XHTML "prev", linkstr);
+		librdf_model_context_add_statement(request->model, graph, st);
 		librdf_free_statement(st);
 		free(linkstr);
 		quilt_canon_destroy(link);
@@ -232,50 +240,41 @@ patchwork_query_meta(QUILTREQ *request, struct query_struct *query)
 		/* ... xhv:next </?offset=...> */
 		link = quilt_canon_create(request->canonical);
 		quilt_canon_set_param_int(link, "offset", request->offset + request->limit);
-		if(request->index)
-		{
-			linkstr = quilt_canon_str(link, QCO_ABSTRACT);
-		}
-		else
-		{
-			linkstr = quilt_canon_str(link, QCO_NOEXT|QCO_FRAGMENT);
-		}
-		st = quilt_st_create_uri(abstract, NS_XHTML "next", linkstr);
-		librdf_model_add_statement(request->model, st);
+		linkstr = quilt_canon_str(link, QCO_DEFAULT);
+		st = quilt_st_create_uri(query->resource, NS_XHTML "next", linkstr);
+		librdf_model_context_add_statement(request->model, graph, st);
 		librdf_free_statement(st);
 		free(linkstr);
 		quilt_canon_destroy(link);
 	}
-	if(strcmp(root, abstract))
+	if(strcmp(query->resource, query->base))
 	{		
-		st = quilt_st_create_uri(abstract, NS_DCTERMS "isPartOf", root);
-		librdf_model_add_statement(request->model, st);
+		st = quilt_st_create_uri(query->resource, NS_DCTERMS "isPartOf", query->base);
+		librdf_model_context_add_statement(request->model, graph, st);
 		librdf_free_statement(st);
 
-		st = quilt_st_create_uri(root, NS_RDF "type", NS_VOID "Dataset");
-		librdf_model_add_statement(request->model, st);
+		st = quilt_st_create_uri(query->base, NS_RDF "type", NS_VOID "Dataset");
+		librdf_model_context_add_statement(request->model, graph, st);
 		librdf_free_statement(st);
 
 		if(request->indextitle)
 		{
-			st = quilt_st_create_literal(root, NS_RDFS "label", request->indextitle, "en-gb");
-			librdf_model_add_statement(request->model, st);
+			st = quilt_st_create_literal(query->base, NS_RDFS "label", request->indextitle, "en-gb");
+			librdf_model_context_add_statement(request->model, graph, st);
 			librdf_free_statement(st);
 		}
 	}
 	/* ... rdf:type void:Dataset */
-	st = quilt_st_create_uri(abstract, NS_RDF "type", NS_VOID "Dataset");
-	librdf_model_add_statement(request->model, st);
+	st = quilt_st_create_uri(query->resource, NS_RDF "type", NS_VOID "Dataset");
+	librdf_model_context_add_statement(request->model, graph, st);
 	librdf_free_statement(st);
-
-	if(request->index || query->explicit || query->offset || query->limit != request->deflimit)
+		
+	if(request->index || query->explicit)
 	{
 		/* ... rdf:label */
-		patchwork_query_title_(request, abstract, query);
+		patchwork_query_title_(request, query->resource, query);
 	}
 	
-	free(root);
-	free(abstract);
 	return 200;
 }
 
@@ -283,21 +282,14 @@ patchwork_query_meta(QUILTREQ *request, struct query_struct *query)
 int
 patchwork_query_osd(QUILTREQ *request)
 {
-	char *self, *linkstr;
+	char *linkstr;
 	QUILTCANON *link;
 	librdf_statement *st;
 	librdf_node *graph;
+	const char *subj;
 
+	subj = quilt_request_subject(request);
 	graph = quilt_request_graph(request);
-	/* Add OpenSearch information to the index */
-	if(request->index)
-	{
-		self = quilt_canon_str(request->canonical, (request->ext ? QCO_ABSTRACT : QCO_REQUEST));
-	}
-	else
-	{
-		self = quilt_canon_str(request->canonical, QCO_NOEXT|QCO_FRAGMENT);
-	}
 	link = quilt_canon_create(request->canonical);
 	quilt_canon_reset_params(link);
 	quilt_canon_add_param(link, "q", "{searchTerms?}");
@@ -312,33 +304,34 @@ patchwork_query_osd(QUILTREQ *request)
 	quilt_canon_add_param(link, "media", "{dct:DCMIType?}");
 	quilt_canon_add_param(link, "type", "{dct:IMT?}");
 	quilt_canon_set_ext(link, NULL);
-	linkstr = quilt_canon_str(link, QCO_ABSTRACT|QCO_FRAGMENT);
-	st = quilt_st_create_literal(self, NS_OSD "template", linkstr, NULL);
+	linkstr = quilt_canon_str(link, QCO_ABSTRACT);
+	st = quilt_st_create_literal(subj, NS_OSD "template", linkstr, NULL);
 	librdf_model_context_add_statement(request->model, graph, st);
 	librdf_free_statement(st);
 	free(linkstr);
 	quilt_canon_destroy(link);
 
-	st = quilt_st_create_literal(self, NS_OSD "Language", "en-gb", NULL);
+	st = quilt_st_create_literal(subj, NS_OSD "Language", "en-gb", NULL);
 	librdf_model_context_add_statement(request->model, graph, st);
 	librdf_free_statement(st);
 
-	st = quilt_st_create_literal(self, NS_OSD "Language", "cy-gb", NULL);
+	st = quilt_st_create_literal(subj, NS_OSD "Language", "cy-gb", NULL);
 	librdf_model_context_add_statement(request->model, graph, st);
 	librdf_free_statement(st);
 
-	st = quilt_st_create_literal(self, NS_OSD "Language", "gd-gb", NULL);
+	st = quilt_st_create_literal(subj, NS_OSD "Language", "gd-gb", NULL);
 	librdf_model_context_add_statement(request->model, graph, st);
 	librdf_free_statement(st);
 
-	st = quilt_st_create_literal(self, NS_OSD "Language", "ga-gb", NULL);
+	st = quilt_st_create_literal(subj, NS_OSD "Language", "ga-gb", NULL);
 	librdf_model_context_add_statement(request->model, graph, st);
 	librdf_free_statement(st);
 
+	/* XXX Why is this not part of patchwork_query_meta()? */
 	if(request->home)
 	{
 		/* Add VoID descriptive metadata */	
-		st = quilt_st_create_uri(self, NS_RDF "type", NS_VOID "Dataset");
+		st = quilt_st_create_uri(subj, NS_RDF "type", NS_VOID "Dataset");
 		librdf_model_context_add_statement(request->model, graph, st);
 		librdf_free_statement(st);
 		
@@ -346,7 +339,7 @@ patchwork_query_osd(QUILTREQ *request)
 		quilt_canon_reset_params(link);
 		quilt_canon_add_param(link, "uri", "");
 		linkstr = quilt_canon_str(link, QCO_ABSTRACT);
-		st = quilt_st_create_uri(self, NS_VOID "uriLookupEndpoint", linkstr);
+		st = quilt_st_create_uri(subj, NS_VOID "uriLookupEndpoint", linkstr);
 		librdf_model_context_add_statement(request->model, graph, st);
 		librdf_free_statement(st);	
 		free(linkstr);
@@ -361,7 +354,7 @@ patchwork_query_osd(QUILTREQ *request)
 		quilt_canon_set_explicitext(link, NULL);
 		quilt_canon_set_ext(link, "osd");
 		linkstr = quilt_canon_str(link, QCO_CONCRETE);
-		st = quilt_st_create_uri(self, NS_VOID "openSearchDescription", linkstr);	
+		st = quilt_st_create_uri(subj, NS_VOID "openSearchDescription", linkstr);	
 		librdf_model_context_add_statement(request->model, graph, st);
 		librdf_free_statement(st);	
 		free(linkstr);
@@ -372,9 +365,9 @@ patchwork_query_osd(QUILTREQ *request)
 }
 
 static char *
-patchwork_query_subjtitle_(QUILTREQ *request, const char *primary, const char *secondary)
+patchwork_query_subjtitle_(QUILTREQ *request, const char *abstract, const char *primary, const char *secondary)
 {
-	char *subj, *pri, *sec, *none;
+	char *pri, *sec, *none;
 	const char *lang, *value;
 	librdf_statement *query, *st;
 	librdf_stream *stream;
@@ -383,9 +376,7 @@ patchwork_query_subjtitle_(QUILTREQ *request, const char *primary, const char *s
 	pri = NULL;
 	sec = NULL;
 	none = NULL;
-	subj = quilt_canon_str(request->canonical, QCO_SUBJECT|QCO_NOPARAMS);
-	query = quilt_st_create(subj, NS_RDFS "label");
-	free(subj);
+	query = quilt_st_create(abstract, NS_RDFS "label");
 	for(stream = librdf_model_find_statements(request->model, query);
 		!librdf_stream_end(stream);
 		librdf_stream_next(stream))
@@ -460,7 +451,7 @@ patchwork_query_title_(QUILTREQ *request, const char *abstract, struct query_str
 	if(query->collection)
 	{
 		/* within <...> */
-		title_en_gb = patchwork_query_subjtitle_(request, "en-gb", "en");
+		title_en_gb = patchwork_query_subjtitle_(request, abstract, "en-gb", "en");
 		if(title_en_gb)
 		{
 			len += strlen(title_en_gb) + 16;
@@ -633,7 +624,7 @@ patchwork_query_title_(QUILTREQ *request, const char *abstract, struct query_str
 	*p = 0;
 
 	st = quilt_st_create_literal(abstract, NS_RDFS "label", buf, "en-gb");
-	librdf_model_add_statement(request->model, st);
+	librdf_model_context_add_statement(request->model, request->graph, st);
 	librdf_free_statement(st);
 	free(buf);
 	free(title_en_gb);

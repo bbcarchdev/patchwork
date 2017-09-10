@@ -3,7 +3,7 @@
  *
  * Author: Mo McRoberts <mo.mcroberts@bbc.co.uk>
  *
- * Copyright (c) 2014-2015 BBC
+ * Copyright (c) 2014-2017 BBC
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ patchwork_index(QUILTREQ *request, const char *qclass)
 	struct query_struct query;
 	int r;
 
+	quilt_canon_set_fragment(request->canonical, NULL);
 	patchwork_query_init(&query);
 	r = patchwork_query_request(&query, request, qclass);
 	if(r != 200)
@@ -41,24 +42,18 @@ patchwork_index(QUILTREQ *request, const char *qclass)
 		request->indextitle = "Everything";
 	}
 	r = patchwork_query(request, &query);
-	if(r != 200)
-	{
-		return r;
+	if(r == 200)
+	{		
+		r = patchwork_query_meta(request, &query);
 	}
-	r = patchwork_query_meta(request, &query);
-	if(r != 200)
+	if(r == 200)
 	{
-		return r;
+		r = patchwork_query_osd(request);
 	}
-	r = patchwork_query_osd(request);
-	if(r != 200)
+	if(r == 200)
 	{
-		return r;
+		r = patchwork_add_concrete(request);
 	}
-	r = patchwork_add_concrete(request);
-	if(r != 200)
-	{
-		return r;
-	}
-	return 200;
+	patchwork_query_free(&query);
+	return r;
 }
