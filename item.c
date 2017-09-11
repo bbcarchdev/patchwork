@@ -164,6 +164,7 @@ patchwork_item_postprocess_(QUILTREQ *request)
 	free(abstracturi);
 	/* Find any ?s owl:sameAs <subject> triples and flip them around */
 	uri = quilt_canon_str(request->canonical, QCO_SUBJECT);
+	quilt_request_set_subject_uristr(request, uri);
 	node = quilt_node_create_uri(uri);
 	sameas = quilt_node_create_uri(NS_OWL "sameAs");
 	query = librdf_new_statement_from_nodes(world, NULL, sameas, NULL);
