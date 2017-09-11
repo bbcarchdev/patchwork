@@ -365,15 +365,11 @@ patchwork_query_db_media_(struct db_qbuf_struct *qbuf, struct query_struct *quer
 		{
 			if(query->duration_min)
 			{
-				appendf(qbuf, " AND \"m\".\"duration\" >= %d");
-				qbuf->args[qbuf->n] = (void *) (ptrdiff_t) query->duration_min;
-				qbuf->n++;
+				appendf(qbuf, " AND \"m\".\"duration\" >= %d", query->duration_min);
 			}
 			if(query->duration_max)
 			{
-				appendf(qbuf, " AND \"m\".\"duration\" <= %d");
-				qbuf->args[qbuf->n] = (void *) (ptrdiff_t) query->duration_max;
-				qbuf->n++;
+				appendf(qbuf, " AND \"m\".\"duration\" <= %d", query->duration_max);
 			}
 		}
 	}
