@@ -156,7 +156,6 @@ int
 patchwork_query(QUILTREQ *request, struct query_struct *query)
 {
 	int r;
-	size_t l;
 
 	if(!query->base)
 	{
@@ -172,17 +171,9 @@ patchwork_query(QUILTREQ *request, struct query_struct *query)
 	}
 	if(query->related)
 	{
-		query->rcanon = quilt_canon_create(NULL);
-		l = strlen(request->base);
-		if(!strncmp(query->related, request->base, l))
-		{
-			quilt_canon_set_base(query->rcanon, request->base);
-			quilt_canon_add_path(query->rcanon, query->related + l);
-		}
-		else
-		{
-			quilt_canon_set_base(query->rcanon, query->related);
-		}
+		query->rcanon = quilt_canon_create(request->canonical);
+		quilt_canon_set_base(query->rcanon, request->base);
+		quilt_canon_add_path(query->rcanon, query->related);
 		quilt_canon_set_fragment(query->rcanon, "id");	
 	}
 	if(patchwork->db)
@@ -632,11 +623,11 @@ patchwork_query_title_(QUILTREQ *request, const char *abstract, struct query_str
 }
 
 int
-patchwork_membership(QUILTREQ *request)
+patchwork_membership(QUILTREQ *request, const char *id)
 {
 	if(patchwork->db)
 	{
-		return patchwork_membership_db(request);
+		return patchwork_membership_db(request, id);
 	}
 	return 200;
 }

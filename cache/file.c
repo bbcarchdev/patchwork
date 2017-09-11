@@ -27,39 +27,29 @@
 
 /* Fetch an item by retrieving triples or quads from the on-disk cache */
 int
-patchwork_item_file(QUILTREQ *request)
+patchwork_item_file(QUILTREQ *request, const char *id)
 {
+	char pathbuf[36];
 	char *p;
 	char *buf, *buffer;
 	FILE *f;
 	ssize_t r;
 	size_t bufsize, buflen;
 	
-	quilt_canon_add_path(request->canonical, request->path);
-	quilt_canon_set_fragment(request->canonical, "id");
-	/* Perform a basic sanity-check on the path */
-	if(request->path[0] != '/' ||
-		strchr(request->path, '.') ||
-		strchr(request->path, '%'))
+	if(strlen(id) != 32)
 	{
 		return 404;
 	}
-	for(p = request->path; *p && *p == '/'; p++);
-	if(!*p)
-	{
-		return 404;
-	}
-	if(strchr(p, '/'))
-	{
-		return 404;
-	}
-	buf = (char *) calloc(1, strlen(patchwork->cache.path) + strlen(p) + 16);
+	pathbuf[0] = '/';
+	strcpy(pathbuf + 1, id);
+	
+	buf = (char *) calloc(1, strlen(patchwork->cache.path) + strlen(pathbuf) + 16);
 	if(!buf)
 	{
 		return 500;
 	}
 	strcpy(buf, patchwork->cache.path);
-	strcat(buf, p);
+	strcat(buf, pathbuf);
 	f = fopen(buf, "rb");
 	if(!f)
 	{

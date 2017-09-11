@@ -24,8 +24,9 @@
 
 #include "p_patchwork.h"
 
-static int patchwork_item_is_collection_(QUILTREQ *req);
-static int patchwork_item_postprocess_(QUILTREQ *req);
+static int patchwork_item_id_(QUILTREQ *request, char *idbuf);
+static int patchwork_item_is_collection_(QUILTREQ *req, const char *id);
+static int patchwork_item_postprocess_(QUILTREQ *req, const char *id);
 
 /* Given an item's URI, attempt to redirect to it */
 int
@@ -44,41 +45,47 @@ int
 patchwork_item(QUILTREQ *request)
 {
 	int r;
-
+	char idbuf[36];
+	
+	r = patchwork_item_id_(request, idbuf);
+	if(r)
+	{
+		return r;
+	}
 	if(patchwork->cache.bucket)
 	{
-		r = patchwork_item_s3(request);
+		r = patchwork_item_s3(request, idbuf);
 	}
 	else if(patchwork->cache.path)
 	{
-		r = patchwork_item_file(request);
+		r = patchwork_item_file(request, idbuf);
 	}
 	else
 	{
-		r = patchwork_item_sparql(request);
+		r = patchwork_item_sparql(request, idbuf);
 	}
 	if(r != 200 && patchwork->db)
 	{
 		/* If no data was retrieved from caches, synthesise it
 		 * from the database (#106)
 		 */
-		r = patchwork_item_db(request);
+		r = patchwork_item_db(request, idbuf);
 	}
 	if(r != 200)
 	{
 		return r;
 	}
-	r = patchwork_item_postprocess_(request);
+	r = patchwork_item_postprocess_(request, idbuf);
 	if(r != 200)
 	{
 		return r;
 	}
-	r = patchwork_membership(request);
+	r = patchwork_membership(request, idbuf);
 	if(r != 200)
 	{
 		return r;
 	}
-	r = patchwork_item_related(request);
+	r = patchwork_item_related(request, idbuf);
 	if(r != 200)
 	{
 		return r;
@@ -96,13 +103,14 @@ patchwork_item(QUILTREQ *request)
  * (invoked automatically by patchwork_item())
  */
 int
-patchwork_item_related(QUILTREQ *request)
+patchwork_item_related(QUILTREQ *request, const char *id)
 {
 	struct query_struct query;
 	int r;
 
 	patchwork_query_init(&query);
-	if(patchwork_item_is_collection_(request))
+	query.related = id;
+	if(patchwork_item_is_collection_(request, id))
 	{
 		query.collection = request->subject;
 		r = patchwork_query_request(&query, request, NULL);
@@ -127,7 +135,6 @@ patchwork_item_related(QUILTREQ *request)
 		}
 		return 200;
 	}
-	query.related = request->subject;
 	r = patchwork_query(request, &query);
 	if(r != 200)
 	{
@@ -137,7 +144,7 @@ patchwork_item_related(QUILTREQ *request)
 }
 
 static int
-patchwork_item_postprocess_(QUILTREQ *request)
+patchwork_item_postprocess_(QUILTREQ *request, const char *id)
 {
 	char *uri, *abstracturi;
 	librdf_world *world;
@@ -146,6 +153,8 @@ patchwork_item_postprocess_(QUILTREQ *request)
 	librdf_uri *corefuri;
 	librdf_statement *query, *st, *newst;
 	librdf_stream *stream;
+
+	(void) id;
 
 	world = quilt_librdf_world();
 	model = quilt_request_model(request);
@@ -188,15 +197,18 @@ patchwork_item_postprocess_(QUILTREQ *request)
 }
 
 static int
-patchwork_item_is_collection_(QUILTREQ *req)
+patchwork_item_is_collection_(QUILTREQ *req, const char *id)
 {
 	librdf_statement *query;
 	librdf_stream *stream;
 	int r;
 	char *uri;
 	
+	(void) id;
+
 	uri = quilt_canon_str(req->canonical, QCO_SUBJECT);	
 	/* Look for <subject> a dmcitype:Collection */
+	/* XXX should be config-driven */
 	query = quilt_st_create_uri(uri, NS_RDF "type", NS_DCMITYPE "Collection");
 	free(uri);
 	stream = librdf_model_find_statements(req->model, query);
@@ -209,4 +221,39 @@ patchwork_item_is_collection_(QUILTREQ *req)
 	librdf_free_stream(stream);
 	librdf_free_statement(query);
 	return r;
+}
+
+/* Given a request, determine the UUID of the item being requested */
+static int
+patchwork_item_id_(QUILTREQ *request, char *idbuf)
+{
+	const char *seg;
+	char *p;
+
+	seg = quilt_request_consume(request);
+	if(!seg)
+	{
+		return 404;
+	}
+	
+	for(p = idbuf; *seg; seg++)
+	{
+		if(*seg == '-')
+		{
+			continue;
+		}
+		if(isalnum(*seg))
+		{
+			*p = tolower(*seg);
+			p++;
+			continue;
+		}
+		return 404;
+	}
+	*p = 0;
+	if(strlen(idbuf) != 32)
+	{
+		return 404;
+	}
+	return 0;
 }

@@ -181,13 +181,11 @@ patchwork_lookup_sparql(QUILTREQ *request, const char *target)
 
 /* Fetch an item using the SPARQL back-end */
 int
-patchwork_item_sparql(QUILTREQ *request)
+patchwork_item_sparql(QUILTREQ *request, const char *id)
 {
 	char *query;
 
-	quilt_canon_add_path(request->canonical, request->path);
-	quilt_canon_set_fragment(request->canonical, "id");
-	query = (char *) malloc(strlen(request->subject) + 1024);
+	query = (char *) malloc(strlen(request->base) + strlen(id) + 1024);
 	if(!query)
 	{
 		quilt_logf(LOG_CRIT, QUILT_PLUGIN_NAME ": failed to allocate %u bytes\n", (unsigned) strlen(request->subject) + 128);
@@ -197,9 +195,9 @@ patchwork_item_sparql(QUILTREQ *request)
 	sprintf(query, "SELECT DISTINCT * WHERE {\n"
 			"GRAPH ?g {\n"
 			"  ?s ?p ?o . \n"
-			"  FILTER( ?g = <%s> )\n"
+			"  FILTER( ?g = <%s%s#id> )\n"
 			"}\n"
-			"}", request->subject);
+			"}", request->base, id);
 	if(quilt_sparql_query_rdf(query, request->model))
 	{
 		quilt_logf(LOG_ERR, QUILT_PLUGIN_NAME ": failed to create model from query\n");

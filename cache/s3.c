@@ -35,26 +35,24 @@ static size_t patchwork_s3_write_(char *ptr, size_t size, size_t nemb, void *use
 
 /* Fetch an item by retrieving triples or quads from an S3 bucket */
 int
-patchwork_item_s3(QUILTREQ *request)
+patchwork_item_s3(QUILTREQ *request, const char *id)
 {
+	char pathbuf[36];
 	AWSREQUEST *req;
 	CURL *ch;
 	struct data_struct data;
 	long status;
 	char *mime;
 
-	/* Perform a basic sanity-check on the path */
-	if(request->path[0] != '/' ||
-	   strchr(request->path, '.') ||
-	   strchr(request->path, '%'))
+	if(strlen(id) != 32)
 	{
 		return 404;
 	}
-	quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": S3: request path is %s\n", request->path);
-	quilt_canon_add_path(request->canonical, request->path);
-	quilt_canon_set_fragment(request->canonical, "id");
+	pathbuf[0] = '/';
+	strcpy(pathbuf + 1, id);
+	quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": S3: request path is %s\n", pathbuf);
 	memset(&data, 0, sizeof(struct data_struct));
-	req = aws_s3_request_create(patchwork->cache.bucket, request->path, "GET");
+	req = aws_s3_request_create(patchwork->cache.bucket, pathbuf, "GET");
 	if(!req)
 	{
 		quilt_logf(LOG_CRIT, QUILT_PLUGIN_NAME ": S3: failed to create S3 request\n");

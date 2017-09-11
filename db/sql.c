@@ -87,25 +87,12 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 	collection = NULL;
 	if(query->related)
 	{
-		quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": DB: related: <%s> (base is <%s>)\n", query->related, request->base);
-		c = strlen(request->base);
-		if(!strncmp(query->related, request->base, c))
-		{
-			related = query->related + c;
-			while(related[0] == '/')
-			{
-				related++;
-			}
-			quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": DB: related: '%s'\n", related);
-			if(strlen(related) != 32)
-			{
-				return 404;
-			}
-		}
-		else
+		quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": DB: related: <%s> (base is <%s>)\n", query->related, request->base);		
+		if(strlen(query->related) != 32)
 		{
 			return 404;
 		}
+		related = query->related;
 	}
 	else if(query->collection)
 	{
@@ -399,32 +386,14 @@ patchwork_query_db_media_(struct db_qbuf_struct *qbuf, struct query_struct *quer
  * The result is an HTTP response code (200 for success).
  */
 int
-patchwork_item_db(QUILTREQ *request)
+patchwork_item_db(QUILTREQ *request, const char *id)
 {
-	size_t c;
-	const char *id, *t;
+	const char *t;
 	struct db_item_struct item;
 	SQL_STATEMENT *rs;
 
 	/* Extract the UUID from the request-URI */
-	c = strlen(request->base);
-	if(!strncmp(request->subject, request->base, c))
-	{
-		id = request->subject + c;
-		while(id[0] == '/')
-		{
-			id++;
-		}
-		quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": DB: item: '%s'\n", id);
-		if(strlen(id) != 32)
-		{
-			return 404;
-		}
-	}
-	else
-	{
-		return 404;
-	}
+	quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": DB: item: '%s'\n", id);
 	/* Populate a db_item_struct based upon the data that's available. The
 	 * structure has space for the various index fields (in their raw form
 	 * as returned by the database).
@@ -485,48 +454,23 @@ patchwork_item_db(QUILTREQ *request)
  * of.
  */
 int
-patchwork_membership_db(QUILTREQ *request)
+patchwork_membership_db(QUILTREQ *request, const char *id)
 {
-	size_t c;
-	const char *id, *t;
+	const char *t, *self;
 	SQL_STATEMENT *rs;
 	QUILTCANON *item;
 	char idbuf[36];
-	char *self, *p;
+	char *p;
 
-	c = strlen(request->base);
-	if(!strncmp(request->subject, request->base, c))
-	{
-		id = request->subject + c;
-		while(id[0] == '/')
-		{
-			id++;
-		}
-		quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": DB: membership: '%s'\n", id);
-		if(strlen(id) != 32)
-		{
-			return 404;
-		}
-	}
-	else
-	{
-		return 404;
-	}
-	if(request->index)
-	{
-		self = quilt_canon_str(request->canonical, (request->ext ? QCO_ABSTRACT : QCO_REQUEST));
-	}
-	else
-	{
-		self = quilt_canon_str(request->canonical, QCO_NOEXT|QCO_FRAGMENT);
-	}
+	quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": DB: membership: '%s'\n", id);
+	self = quilt_request_subject(request);
+
 	/* #109: If we are generating the membership graph, we should use query
 	 * parameters for pagination, and ignore them otherwise
 	 */
 	rs = sql_queryf(patchwork->db, "SELECT \"collection\" FROM \"membership\" WHERE \"id\" = %Q LIMIT %d", id, request->limit);
 	if(!rs)
 	{
-		free(self);
 		return 500;
 	}
 	for(; !sql_stmt_eof(rs); sql_stmt_next(rs))
@@ -550,7 +494,6 @@ patchwork_membership_db(QUILTREQ *request)
 		quilt_canon_destroy(item);
 	}
 	sql_stmt_destroy(rs);
-	free(self);
 	return 200;
 }
 

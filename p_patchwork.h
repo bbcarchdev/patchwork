@@ -83,7 +83,7 @@ struct patchwork_struct
 		AWSS3BUCKET *bucket;
 		char *path;
 		int s3_verbose;
-		long s3_fetch_limit;
+		size_t s3_fetch_limit;
 	} cache;	  
 	SQL *db;
 	int db_version;
@@ -155,7 +155,7 @@ int patchwork_process(QUILTREQ *request);
 int patchwork_index(QUILTREQ *req, const char *qclass);
 int patchwork_home(QUILTREQ *req);
 int patchwork_item(QUILTREQ *req);
-int patchwork_item_related(QUILTREQ *request);
+int patchwork_item_related(QUILTREQ *request, const char *id);
 int patchwork_lookup(QUILTREQ *req, const char *uri);
 
 int patchwork_add_concrete(QUILTREQ *request);
@@ -175,7 +175,7 @@ int patchwork_query_meta(QUILTREQ *request, struct query_struct *query);
 /* Add OpenSearch metadata to roots */
 int patchwork_query_osd(QUILTREQ *request);
 /* Determine what collections something is part of */
-int patchwork_membership(QUILTREQ *request);
+int patchwork_membership(QUILTREQ *request, const char *id);
 
 /* SQL back-end */
 int patchwork_db_init(void);
@@ -183,21 +183,21 @@ int patchwork_db_init(void);
 int patchwork_query_db(QUILTREQ *request, struct query_struct *query);
 int patchwork_lookup_db(QUILTREQ *request, const char *target);
 int patchwork_audiences_db(QUILTREQ *request, struct query_struct *query);
-int patchwork_membership_db(QUILTREQ *request);
-int patchwork_item_db(QUILTREQ *request);
+int patchwork_membership_db(QUILTREQ *request, const char *id);
+int patchwork_item_db(QUILTREQ *request, const char *id);
 
 /* SPARQL back-end */
 int patchwork_query_sparql(QUILTREQ *request, struct query_struct *query);
 int patchwork_lookup_sparql(QUILTREQ *request, const char *target);
-int patchwork_item_sparql(QUILTREQ *req);
+int patchwork_item_sparql(QUILTREQ *req, const char *id);
 
 /* Caches */
 int patchwork_cache_init(void);
 
 /* S3 cache back-end */
-int patchwork_item_s3(QUILTREQ *req);
+int patchwork_item_s3(QUILTREQ *req, const char *id);
 
 /* File cache back-end */
-int patchwork_item_file(QUILTREQ *request);
+int patchwork_item_file(QUILTREQ *request, const char *id);
 
 #endif /*!P_patchwork_H_*/
