@@ -45,13 +45,22 @@ int
 patchwork_item(QUILTREQ *request)
 {
 	int r;
-	char idbuf[36];
+	char idbuf[36], *uri;
 	
 	r = patchwork_item_id_(request, idbuf);
 	if(r)
 	{
 		return r;
 	}
+	/* XXX Check for a sub-graph */
+	/* Set the canonical URI & subject */
+	quilt_canon_add_path(request->canonical, idbuf);
+	quilt_canon_set_fragment(request->canonical, "#id");
+	uri = quilt_canon_str(request->canonical, QCO_SUBJECT);
+	quilt_request_set_subject_uristr(request, uri);
+	quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": item: canonical URI is <%s>\n", uri);
+	free(uri);
+
 	if(patchwork->cache.bucket)
 	{
 		r = patchwork_item_s3(request, idbuf);
@@ -173,7 +182,6 @@ patchwork_item_postprocess_(QUILTREQ *request, const char *id)
 	free(abstracturi);
 	/* Find any ?s owl:sameAs <subject> triples and flip them around */
 	uri = quilt_canon_str(request->canonical, QCO_SUBJECT);
-	quilt_request_set_subject_uristr(request, uri);
 	node = quilt_node_create_uri(uri);
 	sameas = quilt_node_create_uri(NS_OWL "sameAs");
 	query = librdf_new_statement_from_nodes(world, NULL, sameas, NULL);
