@@ -47,7 +47,7 @@ patchwork_query_sparql(QUILTREQ *request, struct query_struct *query)
 	{
 		return 200;
 	}
-	if(query->related)
+	if(query->about && query->about[0])
 	{
 		sparql = quilt_sparql();
 	

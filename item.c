@@ -116,9 +116,12 @@ patchwork_item_related(QUILTREQ *request, const char *id)
 {
 	struct query_struct query;
 	int r;
+	const char *about[2];
 
 	patchwork_query_init(&query);
-	query.related = id;
+	about[0] = id;
+	about[1] = NULL;
+	query.about = about;
 	if(patchwork_item_is_collection_(request, id))
 	{
 		query.collection = request->subject;

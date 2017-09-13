@@ -43,12 +43,16 @@ patchwork_query_request(struct query_struct *dest, QUILTREQ *request, const char
 {
 	const char *t;
 
+	/* Textual query */
 	t = quilt_request_getparam(request, "q");
 	if(t && t[0])
 	{
 		dest->explicit = 1;
 		quilt_canon_set_param(request->canonical, "q", t);
+		dest->text = t;
+		dest->lang = quilt_request_getparam(request, "lang");
 	}
+	/* Filter by entity class */
 	t = quilt_request_getparam(request, "class");
 	if(t && t[0])
 	{
@@ -60,6 +64,7 @@ patchwork_query_request(struct query_struct *dest, QUILTREQ *request, const char
 	{
 		dest->qclass = qclass;
 	}
+	/* Offset and limit */
 	dest->offset = request->offset;
 	if(request->offset)
 	{
@@ -70,17 +75,14 @@ patchwork_query_request(struct query_struct *dest, QUILTREQ *request, const char
 	{
 		quilt_canon_set_param_int(request->canonical, "limit", request->limit);
 	}
-	dest->text = quilt_request_getparam(request, "q");
-	dest->lang = quilt_request_getparam(request, "lang");
+	/* Media queries */
 	dest->media = quilt_request_getparam(request, "media");
-	if((dest->text && dest->text[0]) || (dest->lang && dest->lang[0]) || (dest->media && dest->media[0]))
-	{
-		dest->explicit = 1;
-	}
 	if(dest->media)
 	{
 		quilt_canon_set_param(request->canonical, "media", dest->media);
+		dest->explicit = 1;
 	}
+	/* Duration queries */
 	dest->duration_min = quilt_request_getparam_int(request, "duration-min");
 	if(dest->duration_min)
 	{
@@ -93,15 +95,21 @@ patchwork_query_request(struct query_struct *dest, QUILTREQ *request, const char
 		quilt_canon_set_param_int(request->canonical, "duration-max", dest->duration_max);
 		dest->explicit = 1;
 	}
-	// Process for= parameters
+	/* Deal with topical queries (about=xxx) */
+	dest->about = quilt_request_getparam_multi(request, "about");
+	if(dest->about)
+	{
+		quilt_canon_set_param_multi(request->canonical, "about", dest->about);
+		dest->explicit = 1;
+	}
+	/* Restricted-audience group queries */
 	dest->audience = quilt_request_getparam_multi(request, "for");
 	if(dest->audience)
 	{
-		// Put the array of for= params in the request
 		quilt_canon_set_param_multi(request->canonical, "for", dest->audience);
 		dest->explicit = 1;
 	}
-
+	/* Media MIME type queries */
 	dest->type = quilt_request_getparam(request, "type");
 	if(dest->type && dest->type[0])
 	{
@@ -111,6 +119,7 @@ patchwork_query_request(struct query_struct *dest, QUILTREQ *request, const char
 	{
 		quilt_canon_set_param(request->canonical, "type", dest->type);
 	}
+	/* Query mode */
 	t = quilt_request_getparam(request, "mode");
 	if(t && t[0])
 	{
@@ -128,6 +137,7 @@ patchwork_query_request(struct query_struct *dest, QUILTREQ *request, const char
 			quilt_canon_set_param(request->canonical, "mode", t);
 		}
 	}
+	/* Score threshold */
 	t = quilt_request_getparam(request, "score");
 	if(t && t[0])
 	{
@@ -169,11 +179,14 @@ patchwork_query(QUILTREQ *request, struct query_struct *query)
 			quilt_request_set_subject_uristr(request, query->resource);
 		}
 	}
-	if(query->related)
+	if(query->about && query->about[0] && !query->about[1])
 	{
+		/* If there's a single 'about' query, define a canonical URI
+		 * for the subject
+		 */
 		query->rcanon = quilt_canon_create(request->canonical);
 		quilt_canon_set_base(query->rcanon, request->base);
-		quilt_canon_add_path(query->rcanon, query->related);
+		quilt_canon_add_path(query->rcanon, query->about[0]);
 		quilt_canon_set_fragment(query->rcanon, "id");	
 	}
 	if(patchwork->db)

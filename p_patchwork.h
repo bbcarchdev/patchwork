@@ -37,9 +37,11 @@
 
 # define QUILT_PLUGIN_NAME              "patchwork"
 
-# define PATCHWORK_THRESHOLD              40
+# define PATCHWORK_THRESHOLD            40
 
 # define DEFAULT_PATCHWORK_FETCH_LIMIT	( 2 * 1024 )
+
+# define PATCHWORK_ABOUT_MAX            6
 
 # define MIME_NQUADS                    "application/n-quads"
 
@@ -111,8 +113,10 @@ struct query_struct
 	int explicit;
 	/* Query within a collection */
 	const char *collection;
-	/* Find things related to... */
-	const char *related;
+	/* Find things about these topics... */
+	const char *const *about;
+	/* Should 'about' queries be AND (1) or OR (0)? */
+	int aboutmode;
 	QUILTCANON *rcanon;
 	/* Item class query */
 	const char *qclass;

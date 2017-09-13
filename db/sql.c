@@ -30,7 +30,7 @@ struct db_qbuf_struct
 	char *bp;
 	size_t size;
 	ssize_t remaining;
-	const void *args[8];
+	const void *args[8 + PATCHWORK_ABOUT_MAX];
 	size_t n;
 };
 
@@ -77,22 +77,56 @@ int
 patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 {
 	struct db_qbuf_struct qbuf;
-	size_t c;
+	size_t c, d;
 	SQL_STATEMENT *rs;
-	const char *related, *collection;
+	const char *collection, *t;
 	int rankflags;
+	char about[PATCHWORK_ABOUT_MAX + 1][36];
+	char *p;
 
+	memset(about, 0, sizeof(about));
 	memset(&qbuf, 0, sizeof(struct db_qbuf_struct));
-	related = NULL;
 	collection = NULL;
-	if(query->related)
+	if(query->about)
 	{
-		quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": DB: related: <%s> (base is <%s>)\n", query->related, request->base);		
-		if(strlen(query->related) != 32)
+		d = 0;
+		for(c = 0; d < PATCHWORK_ABOUT_MAX && query->about[c]; c++)
 		{
+			rs = sql_queryf(patchwork->db, "SELECT \"id\" FROM \"proxy\" WHERE %Q = ANY(\"sameas\")", query->about[c]);
+			if(!rs)
+			{
+				return 500;
+			}
+			if(sql_stmt_eof(rs))
+			{
+				sql_stmt_destroy(rs);
+				if(query->aboutmode)
+				{
+					/* We can't intersect on something that doesn't exist */
+					return 404;
+				}
+				continue;
+			}
+			p = &(about[d][0]);
+			for(t = sql_stmt_str(rs, 0); *t; t++)
+			{
+				if(isalnum(*t))
+				{
+					*p = *t;
+					p++;
+				}
+			}
+			*p = 0;
+			sql_stmt_destroy(rs);
+			quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": DB: about: <%s>\n", about[d]);			
+		}
+		if(query->about[c] && query->aboutmode)
+		{
+			/* This is an AND query, but there are too many clauses, so
+			 * the query cannot possibly succeed
+			 */
 			return 404;
 		}
-		related = query->related;
 	}
 	else if(query->collection)
 	{
@@ -207,12 +241,31 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 		qbuf.args[qbuf.n] = query->text;
 		qbuf.n++;
 	}
-	if(related)
+	if(about[0][0])
 	{
 		/* IS related */
-		appendf(&qbuf, " INNER JOIN \"about\" \"a\" ON \"a\".\"about\" = %%Q AND \"a\".\"id\" = \"i\".\"id\"");
-		qbuf.args[qbuf.n] = related;
-		qbuf.n++;
+		appendf(&qbuf, " INNER JOIN \"about\" \"a\" ON (");
+		for(c = 0; about[c][0]; c++)
+		{
+			if(c)
+			{
+				if(query->aboutmode)
+				{
+					appendf(&qbuf, " AND \"a\".\"about\" = %%Q");
+				}
+				else
+				{
+					appendf(&qbuf, " OR \"a\".\"about\" = %%Q");
+				}
+			}
+			else
+			{
+				appendf(&qbuf, "\"a\".\"about\" = %%Q");
+			}
+			qbuf.args[qbuf.n] = about[c];
+			qbuf.n++;
+		}
+		appendf(&qbuf, ") AND \"a\".\"id\" = \"i\".\"id\"");
 	}
 	if(collection)
 	{
@@ -235,7 +288,7 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 	if(query->media)
 	{
 		/* We're querying for things with associated media */
-		if(related)
+		if(query->about && query->about[0])
 		{
 			/* If it was a 'related' query, we're already joined to the 'about'
 			 * table and should use that for our join with the media table

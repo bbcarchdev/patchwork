@@ -179,7 +179,8 @@ patchwork_request_is_query_(QUILTREQ *request)
 	   ((t = quilt_request_getparam(request, "for")) && t[0]) ||
 	   ((t = quilt_request_getparam(request, "type")) && t[0]) ||
 	   ((t = quilt_request_getparam(request, "duration-min")) && t[0]) ||
-	   ((t = quilt_request_getparam(request, "duration-max")) && t[0]))
+	   ((t = quilt_request_getparam(request, "duration-max")) && t[0]) ||
+	   ((t = quilt_request_getparam(request, "about")) && t[0]))
 	{
 		request->index = 1;
 		request->home = 0;
