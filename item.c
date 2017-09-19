@@ -89,16 +89,16 @@ patchwork_item(QUILTREQ *request)
 	{
 		return r;
 	}
-	r = patchwork_membership(request, idbuf);
+/*	r = patchwork_membership(request, idbuf);
 	if(r != 200)
 	{
 		return r;
-	}
-	r = patchwork_item_related(request, idbuf);
+		} */
+/*	r = patchwork_item_related(request, idbuf);
 	if(r != 200)
 	{
 		return r;
-	}
+		} */
 	r = patchwork_add_concrete(request);
 	if(r != 200)
 	{

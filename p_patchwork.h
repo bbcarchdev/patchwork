@@ -204,4 +204,4 @@ int patchwork_item_s3(QUILTREQ *req, const char *id);
 /* File cache back-end */
 int patchwork_item_file(QUILTREQ *request, const char *id);
 
-#endif /*!P_patchwork_H_*/
+#endif /*!P_PATCHWORK_H_*/
