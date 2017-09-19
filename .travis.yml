@@ -5,15 +5,23 @@ compiler: clang
 before_install:
 - curl https://letsencrypt.org/certs/isrgrootx1.pem.txt | sudo tee /usr/share/ca-certificates/isrgrootx1.crt
 - echo "isrgrootx1.crt" | sudo tee -a /etc/ca-certificates.conf
-- curl https://letsencrypt.org/certs/lets-encrypt-x3-cross-signed.pem.txt | sudo tee /usr/share/ca-certificates/lets-encrypt-x3-cross-signed.crt
+- curl https://letsencrypt.org/certs/lets-encrypt-x3-cross-signed.pem.txt | sudo tee
+  /usr/share/ca-certificates/lets-encrypt-x3-cross-signed.crt
 - echo "lets-encrypt-x3-cross-signed.crt" | sudo tee -a /etc/ca-certificates.conf
 - sudo update-ca-certificates
-- curl https://raw.githubusercontent.com/bbcarchdev/bbcarchdev-keys/main/bbcarchdev-apt.asc | sudo apt-key add -
-- sudo add-apt-repository "deb [arch=amd64] https://apt.bbcarchdev.net/debian wheezy main ports dev stage live"
-- sudo add-apt-repository "deb http://archive.ubuntu.com/ubuntu $(lsb_release -sc) main universe restricted multiverse"
+- curl https://raw.githubusercontent.com/bbcarchdev/bbcarchdev-keys/main/bbcarchdev-apt.asc
+  | sudo apt-key add -
+- sudo add-apt-repository "deb [arch=amd64] https://apt.bbcarchdev.net/debian wheezy
+  main ports dev stage live"
+- sudo add-apt-repository "deb http://archive.ubuntu.com/ubuntu $(lsb_release -sc)
+  main universe restricted multiverse"
 - sudo apt-get update -qq
-- sudo apt-get install -qq uuid-dev liburi-dev libsql-dev libsparqlclient-dev libquilt-dev libawsclient-dev automake autoconf libtool pkg-config
+- sudo apt-get install -qq uuid-dev liburi-dev libsql-dev libsparqlclient-dev libquilt-dev
+  libawsclient-dev automake autoconf libtool pkg-config
 before_script:
 - autoreconf -f -i
 script:
 - ./configure && make && make check
+notifications:
+  slack:
+    secure: X6fJErkjoyH/nlDCG/lH5ao3g9Bj1E3l0tphJNCJWNf3dgNfFmuNgqvebpjASciMAz+jjWEZsnJhQ9WLL6UTZQ46RTny86L03e0HwaeqC6ygpOspew+fRQ22Ue5FB9Hjfe+cEQMXE71M/hjEdLJd5S1eEyH6YjhrABED/yl08pl5cV6FSfrsV56hMaqJ0tquCJjTo2hiA2/O88xBO33qyAhZMusqz+Uhovro9x8EPNU0KHWQUW8VktmyNuek2i6A1MCjSONF/+l0Tg0eFNWFidBtMRCDwqkvOUmFsSuBmG/CXiaCBy2aDjY/LT85OP8WNcSJLejxWTCkpRiREAZ9nhL4nL5thQYl0623YwL//HNhRK6NLI2WDQdiyUMVsvw8Sg5BtKs3AAjZk9dv5j+qWzFIxJhZwOsy8OapKUAoFC5Li5DcOswLXUSQ+BCWea62xsgnan5Rk8nMb1Xv/fJqG7DDvdV400YdlwQWnvxOB1SD+dSrNIeJK0Dckm+nnn41bMAaVFWaJewRqXKuinJJaq/wah2kA2jXQKbIwY51K7deHeevN/Jd+kGiVEEKwzTGFLIqhJN+Ftemidj9Us3JPuxc5ZwN3ton50NYppDSnbVfssVxQu0XcZzQDAbKGiWf+m/wKn/HLif1qJtVGRyCu1VIUNPVuROKM6BfSAv5jq4=
