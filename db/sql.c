@@ -207,7 +207,7 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 		}
 	}
 	/* SELECT */
-	appendf(&qbuf, "SELECT \"i\".\"id\", \"i\".\"classes\", \"i\".\"title\", \"i\".\"description\", \"i\".\"coordinates\", \"i\".\"modified\"");
+	appendf(&qbuf, "SELECT DISTINCT \"i\".\"id\", \"i\".\"classes\", \"i\".\"title\", \"i\".\"description\", \"i\".\"coordinates\", \"i\".\"modified\"");
 	if(query->text)
 	{
 		/* Rank flags:
