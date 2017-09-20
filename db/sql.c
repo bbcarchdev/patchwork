@@ -243,7 +243,7 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 	}
 	if(about[0][0])
 	{
-		/* IS related */
+		/* IS related - index.about.topic is one of <topic> */
 		appendf(&qbuf, " INNER JOIN \"about\" \"a\" ON (");
 		for(c = 0; about[c][0]; c++)
 		{
@@ -290,10 +290,19 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 		/* We're querying for things with associated media */
 		if(query->about && query->about[0])
 		{
-			/* If it was a 'related' query, we're already joined to the 'about'
-			 * table and should use that for our join with the media table
+			/* When 'about' is given, the semantics of the query are altered:
+			 *   Instead of searching for topics which are optionally the subject of
+			 *   works having related media, we are searching for works which have one
+			 *   (or all) of the listed topics as their subject.
+			 *
+			 * Therefore, the shape of the query changes from
+			 *  select topic where media.work.about = topic
+			 *
+			 * To
+			 *  select work where media.work.about = topic
 			 */
-			appendf(&qbuf, " INNER JOIN \"media\" \"m\" ON (\"i\".\"id\" = \"m\".\"id\"");
+			appendf(&qbuf, " INNER JOIN \"index_media\" \"im\" ON (\"i\".\"id\" = \"im\".\"id\")");
+			appendf(&qbuf, " INNER JOIN \"media\" \"m\" ON (\"im\".\"media\" = \"m\".\"id\"");
 		}
 		else
 		{
