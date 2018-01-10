@@ -222,22 +222,21 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 		 * 32 divides the rank by itself + 1
 		 * See http://www.postgresql.org/docs/9.4/static/textsearch-controls.html
 		 */
-		if(query->mode == QM_AUTOCOMPLETE)
-		{
-			rankflags = 32;
-			appendf(&qbuf, ", ts_rank_cd(ARRAY[0, 0, 0, 1.0], \"i\".\"index_%s\", \"query\", %d) AS \"rank\"", query->lang, rankflags);
-		}
-		else
-		{
-			rankflags = 32;
-			appendf(&qbuf, ", ts_rank_cd(\"i\".\"index_%s\", \"query\", %d) AS \"rank\"", query->lang, rankflags);
-		}
+		rankflags = 32;
+		appendf(&qbuf, ", ts_rank_cd(\"i\".\"index_%s\", \"query\", %d) AS \"rank\"", query->lang, rankflags);
 	}
 	/* FROM */
 	appendf(&qbuf, " FROM \"index\" \"i\"");
 	if(query->text)
 	{
-		appendf(&qbuf, " INNER JOIN plainto_tsquery(%%Q) \"query\" ON \"query\" @@ \"i\".\"index_%s\"", query->lang);
+		if(query->mode == QM_AUTOCOMPLETE)
+		{
+			appendf(&qbuf, " INNER JOIN to_tsquery(''%%Q':A*') \"query\" ON \"query\" @@ \"i\".\"index_%s\"", query->lang);
+		}
+		else
+		{
+			appendf(&qbuf, " INNER JOIN plainto_tsquery(%%Q) \"query\" ON \"query\" @@ \"i\".\"index_%s\"", query->lang);
+		}
 		qbuf.args[qbuf.n] = query->text;
 		qbuf.n++;
 	}
@@ -359,13 +358,10 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 		appendf(&qbuf, " ORDER BY \"modified\" DESC");
 	}
 	/* LIMIT ... OFFSET ... */
+	appendf(&qbuf, " LIMIT %d", request->limit + 1);
 	if(request->offset)
 	{
-		appendf(&qbuf, " LIMIT %d OFFSET %d", request->limit + 1, request->offset);
-	}
-	else
-	{
-		appendf(&qbuf, " LIMIT %d", request->limit + 1);
+		appendf(&qbuf, " OFFSET %d", request->offset);
 	}
 	rs = sql_queryf(patchwork->db, qbuf.buf, qbuf.args[0], qbuf.args[1], qbuf.args[2], qbuf.args[3], qbuf.args[4], qbuf.args[5], qbuf.args[6], qbuf.args[7]);
 	free(qbuf.buf);
