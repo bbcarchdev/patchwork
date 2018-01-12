@@ -232,6 +232,7 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 		if(query->mode == QM_AUTOCOMPLETE)
 		{
 			appendf(&qbuf, " INNER JOIN to_tsquery(''%%Q':A*') \"query\" ON \"query\" @@ \"i\".\"index_%s\"", query->lang);
+			appendf(&qbuf, " INNER JOIN (SELECT * FROM (SELECT id, svals(title) AS name FROM index) n WHERE name NOT LIKE 'Info about %%%%' AND name NOT LIKE 'Information about %%%%' AND name NOT LIKE 'Description of %%%%') nn ON i.id = nn.id");
 		}
 		else
 		{
