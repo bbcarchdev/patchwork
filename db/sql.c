@@ -207,7 +207,7 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 		}
 	}
 	/* SELECT */
-	appendf(&qbuf, "SELECT DISTINCT \"i\".\"id\", \"i\".\"classes\", \"i\".\"title\", \"i\".\"description\", \"i\".\"coordinates\", \"i\".\"modified\"");
+	appendf(&qbuf, "SELECT DISTINCT ON(\"i\".\"id\") \"i\".\"id\", \"i\".\"classes\", \"i\".\"title\", \"i\".\"description\", \"i\".\"coordinates\", \"i\".\"modified\"");
 	if(query->text)
 	{
 		/* Rank flags:
@@ -349,14 +349,12 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 		appendf(&qbuf, " AND (\"cm\".\"collection\" IS NOT NULL OR \"cm2\".\"collection\" IS NOT NULL)");
 	}
 	/* ORDER BY */
+	appendf(&qbuf, " ORDER BY \"i\".\"id\" ASC");
 	if(query->text)
 	{
-		appendf(&qbuf, " ORDER BY \"rank\" DESC, \"i\".\"score\" ASC, \"modified\" DESC");
+		appendf(&qbuf, ", \"rank\" DESC, \"i\".\"score\" ASC");
 	}
-	else
-	{
-		appendf(&qbuf, " ORDER BY \"modified\" DESC");
-	}
+	appendf(&qbuf, ", \"modified\" DESC");
 	/* LIMIT ... OFFSET ... */
 	appendf(&qbuf, " LIMIT %d", request->limit + 1);
 	if(request->offset)
