@@ -79,10 +79,10 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 	struct db_qbuf_struct qbuf;
 	size_t c, d;
 	SQL_STATEMENT *rs;
-	const char *collection, *t;
+	const char *t;
 	int rankflags;
 	char about[PATCHWORK_ABOUT_MAX + 1][36];
-	char *p;
+	char *collection, *p;
 
 	memset(about, 0, sizeof(about));
 	memset(&qbuf, 0, sizeof(struct db_qbuf_struct));
@@ -118,7 +118,7 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 			}
 			*p = 0;
 			sql_stmt_destroy(rs);
-			quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": DB: about: <%s>\n", about[d]);			
+			quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": DB: about: <%s>\n", about[d]);
 		}
 		if(query->about[c] && query->aboutmode)
 		{
@@ -131,32 +131,28 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 	else if(query->collection)
 	{
 		quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": DB: collection: <%s> (base is <%s>)\n", query->collection, request->base);
-		c = strlen(request->base);
-		if(!strncmp(query->collection, request->base, c))
-		{
-			collection = query->collection + c;
-			while(collection[0] == '/')
-			{
-				collection++;
-			}
-			quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": DB: collection: '%s'\n", collection);
-			if(strlen(collection) != 32)
-			{
-				return 404;
-			}
-		}
-		else
+		c = strlen(query->collection);
+		d = strlen(request->base);
+		if(c != d + 35) /* base + proxy ID + "#id" */
 		{
 			return 404;
 		}
+		if(strncmp(query->collection, request->base, d))
+		{
+			return 404;
+		}
+		collection = strdup(query->collection + d);
+		collection[32] = '\0';
+		quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": DB: collection ID: '%s'\n", collection);
 	}
 	if(query->text && !strcmp(query->text, "*"))
 	{
 		query->text = NULL;
-	}	
+	}
 	query->lang = checklang(request, query->lang);
 	if(!query->lang)
 	{
+		free(collection);
 		return 404;
 	}
 	if(query->media)
@@ -186,6 +182,8 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 	 */
 	if(query->media || query->audience || query->type || query->duration_min || query->duration_max)
 	{
+		size_t i;
+
 		if(!query->media)
 		{
 			query->media = "any";
@@ -199,11 +197,9 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 			query->type = "any";
 		}
 		quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": patchwork_query_db: media='%s', type='%s'\n", query->media, query->type);
-		// audiences log
-		size_t i=0;
-		while(query->audience && query->audience[i]) {
+		for(i = 0; query->audience && query->audience[i]; i++)
+		{
 			quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": patchwork_query_db: audience='%s'\n", query->audience[i]);
-			i++;
 		}
 	}
 	/* SELECT */
@@ -314,7 +310,7 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 			appendf(&qbuf, " INNER JOIN \"media\" \"m\" ON (\"im\".\"media\" = \"m\".\"id\"");
 		}
 		patchwork_query_db_media_(&qbuf, query);
-		appendf(&qbuf, ")");		
+		appendf(&qbuf, ")");
 		if(collection)
 		{
 			/* We're performing a collection-scoped media query; we want to
@@ -364,6 +360,7 @@ patchwork_query_db(QUILTREQ *request, struct query_struct *query)
 	}
 	rs = sql_queryf(patchwork->db, qbuf.buf, qbuf.args[0], qbuf.args[1], qbuf.args[2], qbuf.args[3], qbuf.args[4], qbuf.args[5], qbuf.args[6], qbuf.args[7]);
 	free(qbuf.buf);
+	free(collection);
 	if(!rs)
 	{
 		quilt_logf(LOG_CRIT, QUILT_PLUGIN_NAME ": query execution failed\n");
@@ -684,8 +681,8 @@ process_rs(QUILTREQ *request, struct query_struct *query, SQL_STATEMENT *rs)
 	int c, r;
 	const char *t;
 	char idbuf[36], *p;
-	const char *self;	
-	
+	const char *self;
+
 	self = query->resource;
 	for(c = 0; !sql_stmt_eof(rs) && c < request->limit; sql_stmt_next(rs))
 	{
@@ -1034,7 +1031,7 @@ add_point(librdf_model *model, librdf_node *graph, const char *array, const char
 		}
 		librdf_free_uri(type);
 		return 0;
-	}	
+	}
 	st = quilt_st_create(subject, NS_GEO "lat");
 	librdf_statement_set_object(st, coords[0]);
 	if(graph)
@@ -1144,7 +1141,7 @@ add_langvector(librdf_model *model, librdf_node *graph, const char *vector, cons
 		if(!*vector || vector[0] != '=' || vector[1] != '>')
 		{
 			break;
-		}		 
+		}
 		vector += 2;
 		while(isspace(*vector))
 		{
@@ -1226,7 +1223,7 @@ appendf(struct db_qbuf_struct *qbuf, const char *fmt, ...)
 	char *p;
 	va_list ap;
 	int l;
-	
+
 	va_start(ap, fmt);
 	l = vsnprintf(qbuf->bp, qbuf->remaining, fmt, ap);
 	va_end(ap);

@@ -46,7 +46,7 @@ patchwork_item(QUILTREQ *request)
 {
 	int r;
 	char idbuf[36], *uri;
-	
+
 	r = patchwork_item_id_(request, idbuf);
 	if(r)
 	{
@@ -93,12 +93,12 @@ patchwork_item(QUILTREQ *request)
 	if(r != 200)
 	{
 		return r;
-		} */
+	} */
 /*	r = patchwork_item_related(request, idbuf);
 	if(r != 200)
 	{
 		return r;
-		} */
+	} */
 	r = patchwork_add_concrete(request);
 	if(r != 200)
 	{
@@ -172,7 +172,7 @@ patchwork_item_postprocess_(QUILTREQ *request, const char *id)
 	model = quilt_request_model(request);
 	graph = quilt_request_graph(request);
 	/* Move anything in the abstract document graph to the concrete graph */
-	abstracturi = quilt_canon_str(request->canonical, QCO_ABSTRACT);	
+	abstracturi = quilt_canon_str(request->canonical, QCO_ABSTRACT);
 	abstract = quilt_node_create_uri(abstracturi);
 	if(!librdf_node_equals(abstract, graph))
 	{
@@ -214,10 +214,10 @@ patchwork_item_is_collection_(QUILTREQ *req, const char *id)
 	librdf_stream *stream;
 	int r;
 	char *uri;
-	
+
 	(void) id;
 
-	uri = quilt_canon_str(req->canonical, QCO_SUBJECT);	
+	uri = quilt_canon_str(req->canonical, QCO_SUBJECT);
 	/* Look for <subject> a dmcitype:Collection */
 	/* XXX should be config-driven */
 	query = quilt_st_create_uri(uri, NS_RDF "type", NS_DCMITYPE "Collection");
@@ -246,7 +246,7 @@ patchwork_item_id_(QUILTREQ *request, char *idbuf)
 	{
 		return 404;
 	}
-	
+
 	for(p = idbuf; *seg; seg++)
 	{
 		if(*seg == '-')
