@@ -89,16 +89,16 @@ patchwork_item(QUILTREQ *request)
 	{
 		return r;
 	}
-/*	r = patchwork_membership(request, idbuf);
+	r = patchwork_membership(request, idbuf);
 	if(r != 200)
 	{
 		return r;
-	} */
-/*	r = patchwork_item_related(request, idbuf);
+	}
+	r = patchwork_item_related(request, idbuf);
 	if(r != 200)
 	{
 		return r;
-	} */
+	}
 	r = patchwork_add_concrete(request);
 	if(r != 200)
 	{
@@ -124,7 +124,8 @@ patchwork_item_related(QUILTREQ *request, const char *id)
 	query.about = about;
 	if(patchwork_item_is_collection_(request, id))
 	{
-		query.collection = request->subject;
+		quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": item: is collection and subject is <%s>\n", request->subject);
+		query.collection = request->subject; // seems to be missing "#id" when evaluated later - does it have it here?
 		r = patchwork_query_request(&query, request, NULL);
 		if(r != 200)
 		{
@@ -159,18 +160,21 @@ static int
 patchwork_item_postprocess_(QUILTREQ *request, const char *id)
 {
 	char *uri, *abstracturi;
+	unsigned char *corefuri_str;
 	librdf_world *world;
 	librdf_model *model;
 	librdf_node *abstract, *graph, *node, *sameas, *coref;
-	librdf_uri *corefuri;
 	librdf_statement *query, *st, *newst;
 	librdf_stream *stream;
 
 	(void) id;
 
+	quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": patchwork_item_postprocess_(): post-processing item\n");
+
 	world = quilt_librdf_world();
 	model = quilt_request_model(request);
 	graph = quilt_request_graph(request);
+	quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": patchwork_item_postprocess_(): graph context has uri <%s>\n", librdf_uri_as_string(librdf_node_get_uri(graph)));
 	/* Move anything in the abstract document graph to the concrete graph */
 	abstracturi = quilt_canon_str(request->canonical, QCO_ABSTRACT);
 	abstract = quilt_node_create_uri(abstracturi);
@@ -183,11 +187,47 @@ patchwork_item_postprocess_(QUILTREQ *request, const char *id)
 	}
 	librdf_free_node(abstract);
 	free(abstracturi);
+
+	/* If appropriate, strip triples from graphs not in given whitelist */
+//	if(request->whitelist)
+	{
+		librdf_iterator *contexts;
+		librdf_node *context;
+		librdf_stream *stream;
+		librdf_uri *context_uri;
+		unsigned char *context_uri_str;
+
+		quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": patchwork_item_postprocess_(): dumping model before...\n");
+		librdf_model_print(model, stderr);
+		contexts = librdf_model_get_contexts(model);
+		while(!librdf_iterator_end(contexts))
+		{
+			context = librdf_iterator_get_object(contexts);
+			context_uri = librdf_node_get_uri(context);
+			context_uri_str = librdf_uri_as_string(context_uri);
+			quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": patchwork_item_postprocess_(): found context <%s>\n", context_uri_str);
+			stream = librdf_model_context_as_stream(model, context);
+			{
+				;
+			}
+			librdf_free_stream(stream);
+			if(strncmp(context_uri_str, "http://bbcimages.acropolis.org.uk/", 34) != 0)
+			{
+				quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": patchwork_item_postprocess_(): stripping context <%s>\n", context_uri_str);
+				librdf_model_context_remove_statements(model, context);
+			}
+			librdf_iterator_next(contexts);
+		}
+		librdf_free_iterator(contexts);
+		quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": patchwork_item_postprocess_(): dumping model after...\n");
+		librdf_model_print(model, stderr);
+	}
+
 	/* Find any ?s owl:sameAs <subject> triples and flip them around */
 	uri = quilt_canon_str(request->canonical, QCO_SUBJECT);
 	node = quilt_node_create_uri(uri);
 	sameas = quilt_node_create_uri(NS_OWL "sameAs");
-	query = librdf_new_statement_from_nodes(world, NULL, sameas, NULL);
+	query = librdf_new_statement_from_nodes(world, NULL, sameas, node);
 	stream = librdf_model_find_statements(model, query);
 	for(; stream && !librdf_stream_end(stream); librdf_stream_next(stream))
 	{
@@ -195,8 +235,9 @@ patchwork_item_postprocess_(QUILTREQ *request, const char *id)
 		coref = librdf_statement_get_subject(st);
 		if(librdf_node_is_resource(coref))
 		{
-			corefuri = librdf_node_get_uri(coref);
-			newst = quilt_st_create_uri(uri, NS_OWL "sameAs", (const char *) librdf_uri_as_string(corefuri));
+			corefuri_str = librdf_uri_as_string(librdf_node_get_uri(coref));
+			quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": patchwork_item_postprocess_(): flipping source triple <%s> owl:sameAs <%s>\n", corefuri_str, uri);
+			newst = quilt_st_create_uri(uri, NS_OWL "sameAs", (const char *) corefuri_str);
 			librdf_model_context_add_statement(model, graph, newst);
 			librdf_free_statement(newst);
 		}
@@ -218,6 +259,7 @@ patchwork_item_is_collection_(QUILTREQ *req, const char *id)
 	(void) id;
 
 	uri = quilt_canon_str(req->canonical, QCO_SUBJECT);
+	quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": item: looking to see if <%s> is a dcmitype:Collection\n", uri);
 	/* Look for <subject> a dmcitype:Collection */
 	/* XXX should be config-driven */
 	query = quilt_st_create_uri(uri, NS_RDF "type", NS_DCMITYPE "Collection");

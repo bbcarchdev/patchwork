@@ -50,7 +50,7 @@ patchwork_query_sparql(QUILTREQ *request, struct query_struct *query)
 	if(query->about && query->about[0])
 	{
 		sparql = quilt_sparql();
-	
+
 		if(sparql_queryf_model(sparql, request->model, "SELECT DISTINCT ?s ?p ?o ?g WHERE {\n"
 							   "  GRAPH ?g {\n"
 							   "    ?s <" NS_FOAF "topic> <%s#id>\n"
@@ -105,7 +105,7 @@ patchwork_query_sparql(QUILTREQ *request, struct query_struct *query)
 		sparqlres_destroy(res);
 		return r;
 	}
-	sparqlres_destroy(res);	
+	sparqlres_destroy(res);
 	/* Return 200, rather than 0, to auto-serialise the model */
 	return 200;
 }
@@ -127,7 +127,7 @@ patchwork_lookup_sparql(QUILTREQ *request, const char *target)
 	if(!sparql)
 	{
 		return 500;
-	}	
+	}
 	res = sparql_queryf(sparql, "SELECT ?s\n"
 						"WHERE {\n"
 						" GRAPH %V {\n"
@@ -192,6 +192,7 @@ patchwork_item_sparql(QUILTREQ *request, const char *id)
 		return 500;
 	}
 	/* Fetch the contents of the graph named in the request */
+	quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": graphstore/sparql.c:patchwork_item_sparql(): using graph <%s + %s + #id>\n", request->base, id);
 	sprintf(query, "SELECT DISTINCT * WHERE {\n"
 			"GRAPH ?g {\n"
 			"  ?s ?p ?o . \n"
@@ -310,7 +311,7 @@ patchwork_index_metadata_sparqlres_(QUILTREQ *request, struct query_struct *quer
 			free(abstract);
 			return 500;
 		}
-	}	
+	}
 	free(querystr);
 	free(abstract);
 	return 0;

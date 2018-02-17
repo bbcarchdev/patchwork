@@ -736,7 +736,6 @@ process_row(QUILTREQ *request, struct query_struct *query, SQL_STATEMENT *rs, co
 		free(uri);
 		return 0;
 	}
-	quilt_logf(LOG_DEBUG, "adding row <%s>\n", uri);
 
 	slot = quilt_canon_create(request->canonical);
 	quilt_canon_set_fragment(slot, id);
@@ -927,7 +926,7 @@ add_array(librdf_model *model, librdf_node *graph, const char *array, const char
 			}
 			else
 			{
-				librdf_model_context_add_statement(model, graph, st);
+				librdf_model_add_statement(model, st);
 			}
 			librdf_free_statement(st);
 		}

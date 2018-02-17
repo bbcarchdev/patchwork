@@ -197,6 +197,7 @@ patchwork_query(QUILTREQ *request, struct query_struct *query)
 		quilt_canon_add_path(query->rcanon, query->about[0]);
 		quilt_canon_set_fragment(query->rcanon, "id");
 	}
+	quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": query.c:patchwork_query(): base <%s>\n", request->base);
 	if(patchwork->db)
 	{
 		r = patchwork_query_db(request, query);
