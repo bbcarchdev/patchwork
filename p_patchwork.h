@@ -86,7 +86,7 @@ struct patchwork_struct
 		char *path;
 		int s3_verbose;
 		size_t s3_fetch_limit;
-	} cache;	  
+	} cache;
 	SQL *db;
 	int db_version;
 	int threshold;

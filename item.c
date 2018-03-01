@@ -27,6 +27,7 @@
 static int patchwork_item_id_(QUILTREQ *request, char *idbuf);
 static int patchwork_item_is_collection_(QUILTREQ *req, const char *id);
 static int patchwork_item_postprocess_(QUILTREQ *req, const char *id);
+static int str_has_prefix_from_list_(const char *const *list, const char *str);
 
 /* Given an item's URI, attempt to redirect to it */
 int
@@ -160,10 +161,12 @@ static int
 patchwork_item_postprocess_(QUILTREQ *request, const char *id)
 {
 	char *uri, *abstracturi;
-	unsigned char *corefuri_str;
+	unsigned char *corefuri_str, *ctx_str;
+	/* statement context prefix whitelist */
+	const char *const *whitelist;
 	librdf_world *world;
 	librdf_model *model;
-	librdf_node *abstract, *graph, *node, *sameas, *coref;
+	librdf_node *abstract, *graph, *node, *sameas, *coref, *ctx;
 	librdf_statement *query, *st, *newst;
 	librdf_stream *stream;
 
@@ -189,13 +192,13 @@ patchwork_item_postprocess_(QUILTREQ *request, const char *id)
 	free(abstracturi);
 
 	/* If appropriate, strip triples from graphs not in given whitelist */
-//	if(request->whitelist)
+	/* imitate dataset partitioning by whitelisting statement context prefixes */
+	whitelist = quilt_request_getparam_multi(request, "allow");
+	if(whitelist && *whitelist)
 	{
 		librdf_iterator *contexts;
 		librdf_node *context;
-		librdf_stream *stream;
-		librdf_uri *context_uri;
-		unsigned char *context_uri_str;
+		char *context_uri_str;
 
 		quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": patchwork_item_postprocess_(): dumping model before...\n");
 		librdf_model_print(model, stderr);
@@ -203,15 +206,9 @@ patchwork_item_postprocess_(QUILTREQ *request, const char *id)
 		while(!librdf_iterator_end(contexts))
 		{
 			context = librdf_iterator_get_object(contexts);
-			context_uri = librdf_node_get_uri(context);
-			context_uri_str = librdf_uri_as_string(context_uri);
+			context_uri_str = (char *) librdf_uri_as_string(librdf_node_get_uri(context));
 			quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": patchwork_item_postprocess_(): found context <%s>\n", context_uri_str);
-			stream = librdf_model_context_as_stream(model, context);
-			{
-				;
-			}
-			librdf_free_stream(stream);
-			if(strncmp(context_uri_str, "http://bbcimages.acropolis.org.uk/", 34) != 0)
+			if(!str_has_prefix_from_list_(whitelist, (const char *) context_uri_str))
 			{
 				quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": patchwork_item_postprocess_(): stripping context <%s>\n", context_uri_str);
 				librdf_model_context_remove_statements(model, context);
@@ -221,6 +218,8 @@ patchwork_item_postprocess_(QUILTREQ *request, const char *id)
 		librdf_free_iterator(contexts);
 		quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": patchwork_item_postprocess_(): dumping model after...\n");
 		librdf_model_print(model, stderr);
+
+		/* TODO: here, we need to call the part of spindle that does the processing pipeline, but ignore all of the cache and db stuff */
 	}
 
 	/* Find any ?s owl:sameAs <subject> triples and flip them around */
@@ -235,10 +234,12 @@ patchwork_item_postprocess_(QUILTREQ *request, const char *id)
 		coref = librdf_statement_get_subject(st);
 		if(librdf_node_is_resource(coref))
 		{
+			ctx = librdf_stream_get_context(stream);
+			ctx_str = librdf_uri_as_string(librdf_node_get_uri(ctx));
 			corefuri_str = librdf_uri_as_string(librdf_node_get_uri(coref));
-			quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": patchwork_item_postprocess_(): flipping source triple <%s> owl:sameAs <%s>\n", corefuri_str, uri);
+			quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": patchwork_item_postprocess_(): flipping source triple <%s> owl:sameAs <%s> with context <%s>\n", corefuri_str, uri, ctx_str);
 			newst = quilt_st_create_uri(uri, NS_OWL "sameAs", (const char *) corefuri_str);
-			librdf_model_context_add_statement(model, graph, newst);
+			librdf_model_context_add_statement(model, ctx, newst);
 			librdf_free_statement(newst);
 		}
 	}
@@ -246,6 +247,19 @@ patchwork_item_postprocess_(QUILTREQ *request, const char *id)
 	librdf_free_statement(query);
 	free(uri);
 	return 200;
+}
+
+static int
+str_has_prefix_from_list_(const char *const *list, const char *str)
+{
+	for(; list && *list; list++)
+	{
+		if(strncmp(str, *list, strlen(*list)) == 0)
+		{
+			return 1;
+		}
+	}
+	return 0;
 }
 
 static int
