@@ -22,6 +22,8 @@
 # include "config.h"
 #endif
 
+# include <rulebase/librulebase.h>
+
 #include "p_patchwork.h"
 
 static int patchwork_item_id_(QUILTREQ *request, char *idbuf);
@@ -220,6 +222,23 @@ patchwork_item_postprocess_(QUILTREQ *request, const char *id)
 		librdf_model_print(model, stderr);
 
 		/* TODO: here, we need to call the part of spindle that does the processing pipeline, but ignore all of the cache and db stuff */
+		RULEBASE *rules;
+		PROXYENTRY proxy;
+		rules = rulebase_create(world, model, NULL, NULL, "http://localhost/" /* root */, 0 /* multigraph */);
+		proxy_entry_init(&proxy, rules, "http://localhost/9bece6244c934ba2884c4035506a14fc#id" /* localname */, graph);
+		/* Update proxy classes */
+		quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": updating classes\n");
+		if(rulebase_class_update_entry(&proxy) < 0)
+		{
+			return -1;
+		}
+		/* Update proxy properties */
+		quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": updating properties\n");
+		rulebase_prop_update_entry(&proxy, NS_RDFS "label" /* titlepred */, NULL, NULL);
+		proxy_entry_cleanup(&proxy);
+		rulebase_destroy(rules);
+
+		librdf_model_print(model, stderr);
 	}
 
 	/* Find any ?s owl:sameAs <subject> triples and flip them around */
@@ -234,7 +253,7 @@ patchwork_item_postprocess_(QUILTREQ *request, const char *id)
 		coref = librdf_statement_get_subject(st);
 		if(librdf_node_is_resource(coref))
 		{
-			ctx = librdf_stream_get_context(stream);
+			ctx = librdf_stream_get_context2(stream);
 			ctx_str = librdf_uri_as_string(librdf_node_get_uri(ctx));
 			corefuri_str = librdf_uri_as_string(librdf_node_get_uri(coref));
 			quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": patchwork_item_postprocess_(): flipping source triple <%s> owl:sameAs <%s> with context <%s>\n", corefuri_str, uri, ctx_str);
