@@ -223,9 +223,9 @@ patchwork_item_postprocess_(QUILTREQ *request, const char *id)
 
 		/* TODO: here, we need to call the part of spindle that does the processing pipeline, but ignore all of the cache and db stuff */
 		RULEBASE *rules;
-		PROXYENTRY proxy;
+		PROXYENTRY proxy = {0};
 		rules = rulebase_create(world, model, NULL, NULL, "http://localhost/" /* root */, 0 /* multigraph */);
-		proxy_entry_init(&proxy, rules, "http://localhost/9bece6244c934ba2884c4035506a14fc#id" /* localname */, graph);
+		proxy_entry_init(&proxy, rules, "http://localhost/65983a1410ef49e2a3e591f90291a2e0#id" /* localname */, graph);
 		/* Update proxy classes */
 		quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": updating classes\n");
 		if(rulebase_class_update_entry(&proxy) < 0)
@@ -235,10 +235,11 @@ patchwork_item_postprocess_(QUILTREQ *request, const char *id)
 		/* Update proxy properties */
 		quilt_logf(LOG_DEBUG, QUILT_PLUGIN_NAME ": updating properties\n");
 		rulebase_prop_update_entry(&proxy, NS_RDFS "label" /* titlepred */, NULL, NULL);
+		proxy_entry_dump(&proxy);
 		proxy_entry_cleanup(&proxy);
-		rulebase_destroy(rules);
 
 		librdf_model_print(model, stderr);
+		rulebase_destroy(rules);
 	}
 
 	/* Find any ?s owl:sameAs <subject> triples and flip them around */
